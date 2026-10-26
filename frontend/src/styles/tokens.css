@@ -1,0 +1,27 @@
+/* 담당: 공용 — 디자인 변수 */
+:root {
+  --bg: #f5f7fb;
+  --canvas: #e9edf3;
+  --surface: #fff;
+  --text: #18243b;
+  --muted: #778399;
+  --primary: #2463eb;
+  --primary-soft: #eaf1ff;
+  --primary-dark: #1549bc;
+  --warning: #bd3d45;
+  --border: #e8edf4;
+  --hero: #edf3ff;
+  --shadow: 0 22px 70px #20365a18;
+  --overlay: #15233866;
+  --title: 28px;
+  --heading: 19px;
+  --body: 16px;
+  --small: 12px;
+  --radius: 20px;
+  --space: 24px;
+  font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  color: var(--text);
+  font-size: var(--body);
+  font-synthesis: none;
+  background: var(--canvas);
+}
