@@ -44,8 +44,8 @@ export function NavigationProvider({ children }) {
   }, [load]);
   useEffect(() => {
     let active = true;
-    if (ready && !['consent', 'agent'].includes(route.screen))
-      trackScreen(route.screen, agreed)
+    if (ready && !['consent', 'agent', 'login'].includes(route.screen))
+      trackScreen(route.screen, agreed, route.params.menuId)
         .then((result) => {
           if (active && result.bubble) setBubble(result.bubble);
         })
@@ -62,7 +62,7 @@ export function NavigationProvider({ children }) {
   }
   function onClickCapture(event) {
     const element = event.target.closest('[data-track-id]');
-    if (!element || ['consent', 'agent'].includes(route.screen)) return;
+    if (!element || ['consent', 'agent', 'login'].includes(route.screen)) return;
     const key = route.key;
     trackClick(route.screen, element.dataset.trackId, agreed)
       .then((result) => {

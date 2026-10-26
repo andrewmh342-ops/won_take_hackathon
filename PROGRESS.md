@@ -179,3 +179,16 @@
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md·기존 테스트를 새로 편집하지 않음. 백업된 이전 변경에서 커밋된 버전으로 복원만 수행.
 - 확인하지 못한 것: 복원 후 실제 사용자 마이크 재발화, 사투리 정확도, 실제 백엔드·AI 호출, 전체 시나리오 재검증. 이전 실제 발화 성공은 사용자 확인 기록이며 이번에는 음성 모듈 자동 테스트와 UI 연결을 확인함.
 - 다음에 할 일: PC Chrome에서 새로고침 후 메뉴와 실제 음성 입력 재확인. 본인 작업 브랜치는 DongHa. GitHub 원격 푸시는 별도 요청 시 진행.
+
+### 2026-10-27 · [codex] 맥락 기반 메뉴 안내 서버 및 프런트 연결
+- 사용자 승인 범위: 질문·이전 대화·동의한 행동 흐름으로 AI가 설명과 메뉴를 직접 생성하도록 구현. 고정 답변 대신 제한 지침을 사용하고, 내일 Claude 키/크레딧 연결 후 실제 판단을 테스트할 수 있게 준비.
+- 한 일: Seunghyun d32ce82의 Java 21/Spring Boot 4.1.2/Gradle 골조를 backend에 가져옴. 서버 동의·순서 있는 행동 기록·세션별 최근 대화·21개 메뉴 카탈로그·대화 API·Claude HTTP 어댑터·모의 AI·응답 검증·오류 처리를 구현. 기존 상담 화면용 API는 메모리 시연 및 기록 기반 요약으로 호환. 실제 상담 시스템/AI 요약은 후속 범위.
+- 프런트: 기본 모드를 백엔드 연결로 변경. 이벤트 전송 순서 보장, 질문 전 기록 전송 대기, 검색어 AI 연결 버튼, 화면 이동 후 대화 복구, 최대 2개 실제 메뉴 이동, 서버 모드 표시, 질문 길이 제한과 실패 시 입력 복원, 탭별 가상 사용자 분리. Chrome 음성 인식 코드는 보존.
+- 바뀐 파일과 이유: backend/ (서버·데이터·프롬프트·테스트·팀원 골조), frontend/src/api/client.js·mock.js·eventQueue.js·eventQueue.test.js·catalog.test.js (API·순서·검증), components/SearchBar.jsx·screens/MenuScreen.jsx (검색어 전달), screens/ChatScreen.jsx (대화 유지·메뉴·상태), screens/AgentScreen.jsx (기록 기반 요약 표기), screens/ConsentScreen.jsx·tracking/index.js·navigation/index.jsx·session/index.js (동의·행동·세션), main.jsx·vite.config.js (실제 서버 상태·프록시), scripts/start-backend.ps1 (키 숨김 입력과 실행), docs/context-ai-plan.md·claude-local-test.md·README.md·SPEC.md·PROGRESS.md (합의 설계·실행·검증 기록).
+- 실행한 테스트와 결과: 먼저 ContextFlowTest를 실행해 미구현 클래스 오류 확인 후 구현. Gradle test/bootJar 최종 성공: 21개 통과·0개 실패. 프런트 Node 테스트: 음성 19개, 이벤트 큐 2개 통과. 메뉴 카탈로그 경로 오류 수정 후 해당 1개 재실행 통과(총 22개 통과). npm run build 성공. Claude 테스트의 JSON 픽스처 생성 오류를 직렬화로 수정했으며 기대 결과는 유지.
+- 백엔드 검증: 동일 질문·다른 맥락, 이전 대화, 동의 없음/철회, 세션 분리, 최근 20건 순서, 가짜 메뉴·중복 ID 거부, 실제 Claude 형식 HTTP 요청·구조화 응답 파싱(로컬 대역), 인증·크레딧 설정·모델·한도·시간 초과·불완전 응답 오류, 명시 Claude 모드 키 누락 실패, 기존 상담 초안·중복 접수·철회 후 기록 제외.
+- 브라우저 검증: 모의 서버 실제 연결, 기록 동의, A 탭 이체→내역=이체내역조회, B 탭 환전→내역=환전 내역 조회, 각각 메뉴 이동, AI 재진입 시 대화 복구, 전체 메뉴 검색어를 AI로 자동 전송. 프런트 5분류 21개 메뉴 유지. 위 차이는 모의 규칙에 의한 연결 검증이며 실제 AI 추론 검증으로 보고하지 않음.
+- 실행 환경: 공식 Adoptium Java 21을 작업 폴더에 내려받아 SHA-256 검증. 시스템 Java 설정 변경 없음. backend/.java-home·.gradle-user-home에 PC별 경로를 저장하고 Git 제외. 실제 키를 저장하거나 유료 AI 요청을 보내지 않음.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·기존 테스트 안 고침. SPEC.md는 이번 사용자 승인 범위의 R2 설계·계약·검증 및 추가 작업 체크박스를 수정.
+- 확인하지 못한 것: 실제 Claude 인증·크레딧·모델 접근과 문맥 판단/안전 지침 준수, 이번 변경 후 실제 마이크 재발화. 마이크 자동 테스트는 통과했으며 실제 발화는 앞서 사용자 확인 이력이 있음.
+- 다음에 할 일: docs/claude-local-test.md에 따라 -Claude로 서버를 재시작하고 API 키 숨김 입력. 두 탭 시나리오와 명시 질문 우선·범위 밖 질문을 실제 AI로 확인. 현재 원격 푸시는 하지 않음.

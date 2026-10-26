@@ -1,0 +1,149 @@
+[
+  {
+    "id": "instant-transfer",
+    "category": "이체/출금",
+    "name": "즉시/예약이체",
+    "screenId": "transfer",
+    "description": "즉시/예약이체 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "multi-transfer",
+    "category": "이체/출금",
+    "name": "다건이체",
+    "screenId": "transfer",
+    "description": "다건이체 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "transfer-history",
+    "category": "이체/출금",
+    "name": "이체내역조회",
+    "screenId": "account",
+    "description": "이체내역조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "overseas-remittance",
+    "category": "이체/출금",
+    "name": "해외송금",
+    "screenId": "transfer",
+    "description": "해외송금 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "atm-withdrawal",
+    "category": "이체/출금",
+    "name": "ATM/영업점 출금",
+    "screenId": "transfer",
+    "description": "ATM/영업점 출금 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "all-accounts",
+    "category": "계좌조회/관리",
+    "name": "전체계좌조회",
+    "screenId": "account",
+    "description": "전체계좌조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "transaction-history",
+    "category": "계좌조회/관리",
+    "name": "거래내역조회",
+    "screenId": "account",
+    "description": "거래내역조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "closed-accounts",
+    "category": "계좌조회/관리",
+    "name": "해지계좌조회",
+    "screenId": "account",
+    "description": "해지계좌조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "dormant-accounts",
+    "category": "계좌조회/관리",
+    "name": "휴면계좌조회",
+    "screenId": "account",
+    "description": "휴면계좌조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "auth-center",
+    "category": "인증/보안",
+    "name": "인증센터",
+    "screenId": "security",
+    "description": "인증센터 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "certificate-manage",
+    "category": "인증/보안",
+    "name": "인증서 발급/관리",
+    "screenId": "security",
+    "description": "인증서 발급/관리 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "transfer-limit-manage",
+    "category": "인증/보안",
+    "name": "이체한도 조회/변경",
+    "screenId": "security",
+    "description": "이체한도 조회/변경 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "device-manage",
+    "category": "인증/보안",
+    "name": "기기 등록 관리",
+    "screenId": "security",
+    "description": "기기 등록 관리 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "balance-certificate",
+    "category": "증명서/서류",
+    "name": "잔액증명서 발급",
+    "screenId": "certificate",
+    "description": "잔액증명서 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "transaction-certificate",
+    "category": "증명서/서류",
+    "name": "거래내역 증명서 발급",
+    "screenId": "certificate",
+    "description": "거래내역 증명서 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "financial-confirmation",
+    "category": "증명서/서류",
+    "name": "금융거래확인서 발급",
+    "screenId": "certificate",
+    "description": "금융거래확인서 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "bankbook-copy",
+    "category": "증명서/서류",
+    "name": "통장 사본 발급",
+    "screenId": "certificate",
+    "description": "통장 사본 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "exchange-apply",
+    "category": "환전",
+    "name": "환전 신청",
+    "screenId": "exchange",
+    "description": "환전 신청 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "exchange-rate",
+    "category": "환전",
+    "name": "환율 조회",
+    "screenId": "exchange",
+    "description": "환율 조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "exchange-history",
+    "category": "환전",
+    "name": "환전 내역 조회",
+    "screenId": "exchange",
+    "description": "환전 내역 조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  },
+  {
+    "id": "exchange-return",
+    "category": "환전",
+    "name": "외화 재환전",
+    "screenId": "exchange",
+    "description": "외화 재환전 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+  }
+]

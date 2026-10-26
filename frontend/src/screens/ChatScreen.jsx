@@ -1,6 +1,6 @@
 // 담당: 역할 2 — AI 대화, 음성 질문, 상담 인계 확인
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getHandoffSummary, postChat, postHandoff } from '../api/client.js';
+import { getHandoffSummary, postChat, postHandoff, getHistory } from '../api/client.js';
 import { cancelRecognition, startRecognition, stopRecognition } from '../audio/speech.js';
 import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
@@ -23,6 +23,8 @@ const summaryFields = [
 export default function ChatScreen() {
   const { params, navigate } = useNavigation();
   const [messages, setMessages] = useState([]);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historyAttempt, setHistoryAttempt] = useState(0);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [micState, setMicState] = useState('idle');
@@ -36,10 +38,23 @@ export default function ChatScreen() {
   const mounted = useRef(true);
   const voicePending = useRef(false);
 
+  useEffect(() => {
+    let active = true;
+    setError('');
+    getHistory().then((history) => {
+      if (!active) return;
+      setMessages(history.map((entry) => entry.role === 'USER'
+        ? { role: 'USER', text: entry.message, heardText: entry.inputType === 'VOICE' ? entry.message : undefined }
+        : { role: 'ASSISTANT', text: entry.message, ...entry.answer, steps: entry.answer?.steps ?? [] }));
+      setHistoryReady(true);
+    }).catch(() => { if (active) setError('대화 기록을 불러오지 못했어요. 서버 연결을 확인하고 다시 불러와 주세요.'); });
+    return () => { active = false; };
+  }, [historyAttempt]);
+
   const send = useCallback(
     async (message, inputType = 'TEXT', intentId, heardText) => {
       const text = message.trim();
-      if (!text || busy) return;
+      if (!text || busy || !historyReady) return;
 
       setBusy(true);
       setError('');
@@ -56,25 +71,29 @@ export default function ChatScreen() {
             text: result.reply || responseText[result.type] || '안내를 받지 못했어요.',
             normalized: result.normalized,
             menuId: result.menuId,
+            menuIds: result.menuIds,
+            mode: result.mode,
             steps: Array.isArray(result.steps) ? result.steps : [],
             notFoundStreak: result.notFoundStreak,
           },
         ]);
       } catch (requestError) {
+        setMessages((current) => current.at(-1)?.role === 'USER' ? current.slice(0, -1) : current);
+        setDraft(text);
         setError(`질문을 처리하지 못했어요. 다시 시도해 주세요. (${requestError.message})`);
       } finally {
         setBusy(false);
       }
     },
-    [busy],
+    [busy, historyReady],
   );
 
   useEffect(() => {
-    if (params.question && params.intentId && !initialQuestionSent.current) {
+    if (historyReady && params.question && (params.intentId || params.autoSend) && !initialQuestionSent.current) {
       initialQuestionSent.current = true;
-      void send(params.question, 'SUGGESTION', params.intentId);
+      void send(params.question, params.intentId ? 'SUGGESTION' : 'TEXT', params.intentId);
     }
-  }, [params.intentId, params.question, send]);
+  }, [params.intentId, params.question, params.autoSend, historyReady, send]);
 
   useEffect(() => {
     threadEnd.current?.scrollIntoView({ block: 'nearest' });
@@ -154,7 +173,7 @@ export default function ChatScreen() {
 
   const suggestions = Array.isArray(params.suggestions) ? params.suggestions.slice(0, 3) : [];
   const isRecording = micState === 'recording';
-  const inputDisabled = busy || ['starting', 'recording', 'stopping', 'transcribing'].includes(micState);
+  const inputDisabled = !historyReady || busy || ['starting', 'recording', 'stopping', 'transcribing'].includes(micState);
 
   return (
     <section className="page chat-page">
@@ -192,7 +211,8 @@ export default function ChatScreen() {
 
       <ol className="chat-thread" aria-live="polite" aria-label="대화 내용">
         {messages.map((message, index) => {
-          const menuItem = message.menuId ? findMenu(message.menuId) : undefined;
+          const menuItems = [...new Set(message.menuIds ?? (message.menuId ? [message.menuId] : []))]
+            .slice(0, 2).map(findMenu).filter(Boolean);
           const canHandoff =
             message.type === 'SUGGEST_HANDOFF' ||
             (message.type === 'NOT_FOUND' && message.notFoundStreak >= 2);
@@ -211,9 +231,10 @@ export default function ChatScreen() {
               </strong>
               {message.heardText && <small>들은 말</small>}
               <p>{message.text}</p>
+              {message.mode === 'FAKE' && <small>연결 테스트용 모의 응답 · 실제 AI 판단 아님</small>}
               {message.role === 'ASSISTANT' && message.normalized && (
                 <p className="normalized-text">
-                  <strong>이렇게 이해했어요</strong>
+                  <strong>{message.mode === 'FAKE' ? '인식 원문 (모의 모드)' : '이렇게 이해했어요'}</strong>
                   {message.normalized}
                 </p>
               )}
@@ -224,16 +245,17 @@ export default function ChatScreen() {
                   ))}
                 </ol>
               )}
-              {menuItem && (
+              {menuItems.map((menuItem) => (
                 <button
+                  key={menuItem.id}
                   className="text-link"
                   type="button"
                   data-track-id={`chat-menu-${menuItem.id}`}
-                  onClick={() => navigate(menuItem.screenId)}
+                  onClick={() => navigate(menuItem.screenId, { menuId: menuItem.id })}
                 >
                   {menuItem.name} 화면 보기
                 </button>
-              )}
+              ))}
               {canHandoff && (
                 <button
                   className="secondary chat-handoff-button"
@@ -264,6 +286,8 @@ export default function ChatScreen() {
           {error}
         </p>
       )}
+      {!historyReady && <button className="secondary" onClick={() => setHistoryAttempt((n) => n + 1)}>대화 다시 불러오기</button>}
+      {busy && <p role="status">질문과 맥락을 확인하고 있어요.</p>}
       {micState !== 'idle' && (
         <p className="recording-status" role="status">
           {micState === 'starting' && '마이크 연결을 기다리고 있어요.'}
@@ -274,6 +298,7 @@ export default function ChatScreen() {
       )}
 
       <p className="info-note">
+        질문과 최근 대화는 AI 메뉴 안내에 사용해요. 행동 기록은 동의한 경우에만 함께 사용해요.{' '}
         마이크를 누르면 Chrome 음성 인식 서비스에서 음성이 처리될 수 있어요.
         인터넷 연결이 필요하며, 인식이 안 되면 글자로 입력해 주세요.
       </p>
@@ -285,6 +310,7 @@ export default function ChatScreen() {
           onChange={(event) => setDraft(event.target.value)}
           placeholder="무엇이 궁금하세요?"
           autoComplete="off"
+          maxLength={2000}
           disabled={inputDisabled}
           data-track-id="chat-text-input"
         />

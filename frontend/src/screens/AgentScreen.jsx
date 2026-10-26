@@ -148,7 +148,7 @@ export default function AgentScreen() {
               </div>
 
               <section className="agent-card">
-                <h3>AI 요약</h3>
+                <h3>{summary.source === 'RECORDED' ? '대화 기록 요약' : 'AI 요약'}</h3>
                 <dl className="agent-summary">
                   {summaryFields.map(([field, label]) => (
                     <div key={field}>

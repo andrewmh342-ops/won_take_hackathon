@@ -31,14 +31,14 @@ export default function ConsentScreen() {
       <p className="consent-lead">
         화면 이동과 클릭 기록을
         <br />
-        <strong>도움 제안과 상담 연결에 사용</strong>해도 될까요?
+        <strong>AI 메뉴 안내와 도움 제안에 사용</strong>해도 될까요?
       </p>
       <div className="consent-details">
         <div>
           <span>01</span>
           <p>
             <strong>필요한 도움을 먼저</strong>
-            <small>메뉴를 찾기 어려울 때 질문을 제안해요.</small>
+            <small>질문과 최근 행동을 함께 보고 메뉴를 안내해요.</small>
           </p>
         </div>
         <div>
@@ -51,7 +51,7 @@ export default function ConsentScreen() {
       </div>
       <p className="info-note">
         선택 동의예요. 동의하지 않아도 AI 대화는 사용할 수 있어요. 전체 메뉴에서 언제든 바꿀 수
-        있어요.
+        있어요. 실제 AI 모드에서는 질문·최근 대화와 동의한 행동 기록을 Claude에 전달해요.
       </p>
       {error && (
         <p role="alert" className="error">

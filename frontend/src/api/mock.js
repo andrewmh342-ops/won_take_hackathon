@@ -12,6 +12,11 @@ const suggestions = [
   { intentId: 'domestic-transfer', question: '국내송금을 찾고 계신가요?' },
 ];
 export const mock = {
+  async getHistory() {
+    return conversations.map((entry) => entry.role === 'USER' ? entry : {
+      role: 'ASSISTANT', message: entry.reply, inputType: '', answer: structuredClone(entry),
+    });
+  },
   async getConsent() {
     return { agreed };
   },

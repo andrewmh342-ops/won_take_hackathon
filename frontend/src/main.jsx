@@ -1,5 +1,5 @@
 // 담당: 역할 1 — 앱 조립
-import React, { useEffect, useLayoutEffect } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { NavigationProvider, useNavigation } from './navigation/index.jsx';
 import PhoneFrame from './layout/PhoneFrame.jsx';
@@ -13,7 +13,7 @@ import AgentScreen from './screens/AgentScreen.jsx';
 import ServiceScreen from './screens/ServiceScreen.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
 import { registerMenuNavigation, highlightMenu } from './components/MenuList.jsx';
-import { useMock } from './api/client.js';
+import { useMock, getHealth } from './api/client.js';
 import './styles/tokens.css';
 import './styles/app.css';
 const screens = {
@@ -32,6 +32,8 @@ const screens = {
 };
 function App() {
   const { screen, key, navigate } = useNavigation();
+  const [aiMode, setAiMode] = useState(useMock ? 'FRONTEND_MOCK' : 'CONNECTING');
+  useEffect(() => { getHealth().then((status) => setAiMode(status.aiMode)).catch(() => setAiMode('OFFLINE')); }, []);
   useEffect(() => registerMenuNavigation(() => navigate('menu')), [navigate]);
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -50,7 +52,7 @@ function App() {
       <div className="preview-label">
         <span className="preview-dot" />
         WON TAKE{' '}
-        <span className="preview-mode">{useMock ? '가짜 응답 모드' : 'API 연결 모드'}</span>
+        <span className="preview-mode">{{ FRONTEND_MOCK: '프런트 모의 모드', FAKE: '모의 AI · 서버 연결됨', CLAUDE: 'Claude 연결 모드', CONNECTING: '서버 확인 중', OFFLINE: '서버 연결 확인 필요' }[aiMode]}</span>
       </div>
       {screen === 'agent' ? (
         <AgentScreen />

@@ -38,6 +38,11 @@ export default function MenuScreen() {
       <p className="eyebrow">ALL MENU</p>
       <h1>무엇을 도와드릴까요?</h1>
       <SearchBar value={query} onChange={setQuery} trackPrefix="menu" />
+      {query.trim() && (
+        <button className="secondary full" onClick={() => navigate('chat', { question: query.trim(), autoSend: true })}>
+          이 검색어로 AI에게 물어보기
+        </button>
+      )}
       <div className="menu-shortcuts">
         {categories.map((category) => (
           <button
