@@ -145,3 +145,11 @@
 - 고치면 안 되는 파일: AGENTS.md·승인된 SPEC.md를 직접 수정하지 않음 (main 병합 버전 반영)
 - 확인하지 못한 것: 프론트 브라우저 동작 수동 확인
 - 다음에 할 일: 병합된 Jaehong 브랜치에서 작업 계속
+
+### 2026-10-26 20:56 · [codex]
+- 한 일: 역할 2 프론트 기능 구현. 텍스트·추천 질문 대화, 음성 녹음·전사·표준어 표시, 고객 확인 뒤 상담 전달, PC 상담사 접수 목록·요약·클릭 기록·대화 원문 화면 구성
+- 바뀐 파일과 이유: frontend/src/screens/ChatScreen.jsx, AgentScreen.jsx (대화·상담 화면), frontend/src/audio/recorder.js, recorder-worklet.js (최대 30초 16kHz 모노 WAV), frontend/src/api/mock.js (시연 대화·상담 기록), frontend/src/styles/app.css (화면 스타일), frontend/src/audio/recorder.test.js (WAV 형식·리샘플·길이 검증), README.md (실행·검증 안내), PROGRESS.md (기록)
+- 실행한 테스트와 결과: `cd frontend && node --test src/audio/recorder.test.js` 3개 통과·0개 실패. `cd frontend && npm run build` 성공. 브라우저에서 음성 시작·중지 및 고정 전사/정규화 표시, 요약 취소·확인 전달, 접수 목록·클릭 타임라인·대화 원문 표시 확인
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md·사람이 쓴 테스트 안 고침. API 클라이언트는 기존 SPEC 계약 함수를 재사용
+- 확인하지 못한 것: 실제 백엔드 API·CLOVA 연결, 실제 음성 인식 결과, 마이크 30초 자동 종료를 30초간 수동 대기해 확인하는 것
+- 다음에 할 일: 백엔드 연동 후 API 계약과 시나리오 A·B 통합 확인

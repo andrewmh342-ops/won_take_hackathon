@@ -38,12 +38,21 @@ npm run preview
 
 | 담당 | 파일 / 연결점 |
 |---|---|
-| 역할 2 | `frontend/src/screens/ChatScreen.jsx`: `useNavigation().params`의 `suggestions`(말풍선에서 넘어온 추천 질문 최대 3개) 또는 `intentId`, `question` 활용 |
-| 역할 2 | `frontend/src/screens/AgentScreen.jsx`: 휴대폰 틀 밖 PC 상담 화면 |
-| 역할 2 | `frontend/src/audio/recorder.js`: `startRecording`, `stopRecording`은 미구현 오류 발생 |
-| 역할 2 | `frontend/src/components/Popup.jsx`: 제목·children·버튼 목록·onClose를 받는 공용 틀 |
-| 역할 3·4 | `frontend/src/api/client.js`: SPEC 2.4 계약에 맞춘 호출, 서버 연결 모드로 검증 필요 |
+| 역할 2 | `frontend/src/screens/ChatScreen.jsx`: `suggestions` 또는 `intentId`·`question`을 이용한 대화, 음성 질문, 상담 요약 확인·전달 |
+| 역할 2 | `frontend/src/screens/AgentScreen.jsx`: PC 상담 화면의 접수 목록, 요약, 클릭 기록, 대화 원문 |
+| 역할 2 | `frontend/src/audio/recorder.js`: Web Audio API 녹음, 16kHz 모노 WAV 변환, 30초 자동 종료 |
+| 공용 | `frontend/src/components/Popup.jsx`: 요약 확인에 재사용하는 제목·본문·버튼 공용 팝업 |
+| 역할 2 연결 / 역할 3·4 연동 | `frontend/src/api/client.js`: SPEC 2.4의 음성·대화·요약·접수 호출 함수. 실제 서버 모드는 백엔드와 연결해 검증 필요 |
 | 역할 3 | `frontend/src/data/menu.js`: 백엔드 `menu.json`과 `id`·`category`·`name`·`screenId`를 똑같이 유지. 분류 5개, 분류당 4~5개 |
+
+### 역할 2 대화·상담
+
+- 대화 화면은 텍스트 질문과 말풍선 추천 질문을 `/api/chat` 계약에 맞춰 보냅니다. 응답의 `normalized`, `reply`, `steps`, `menuId`를 표시하며 실제 거래는 실행하지 않습니다.
+- 음성 질문은 브라우저 마이크 권한을 받아 AudioWorklet으로 최대 30초 녹음합니다. 음성 파일은 저장하지 않고 16kHz·모노·16bit PCM WAV로 변환해 `/api/voice`에 전송합니다. 인식 결과가 비었거나 오류가 나면 글자 입력을 안내합니다.
+- `SUGGEST_HANDOFF` 응답에서 상담 요약을 요청합니다. 고객이 네 항목을 확인하고 [확인 후 전달]을 누른 경우에만 `/api/handoff`를 호출합니다. [취소]는 접수 API를 호출하지 않습니다.
+- 상담사 화면은 `/api/handoff/tickets`에서 받은 접수 목록과 선택한 티켓의 요약, 클릭 기록, 대화 원문을 보여 줍니다.
+- 가짜 응답 모드에서는 음성 인식·AI 응답·상담 요약이 고정 예시입니다. 실제 AI 품질이나 실제 마이크 입력을 검증한 것으로 보지 않습니다.
+- WAV 변환 단위 테스트: `cd frontend` 후 `node --test src/audio/recorder.test.js`
 
 ### 골조 확인 결과 (2026-10-26)
 
