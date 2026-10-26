@@ -169,3 +169,13 @@
 - 고치면 안 되는 파일: 안 고침.
 - 확인하지 못한 것: 실제 AI·백엔드 연결, 사투리 정확도 및 전체 시연 체크리스트. 가짜 응답 모드의 AI 답변은 예시 응답임.
 - 다음에 할 일: DongHa 브랜치를 본인 작업 브랜치로 사용하고 실제 백엔드·AI 연동 진행.
+
+### 2026-10-27 · [codex]
+- 한 일: 사용자 승인에 따라 최신 origin/main과 Chrome Web Speech API 구현을 DongHa에서 통합 확인. origin/main은 이미 DongHa의 조상이므로 추가 병합은 불필요했음. 작업 폴더에 남은 이전 버전 미커밋 수정·삭제 37개를 파일 백업과 Git stash로 보존하고, main 기능과 음성 인식이 함께 있는 DongHa 커밋 상태로 복원함.
+- 백업: 이 PC의 Codex 작업 공간 work/wontake-backup-20261027에 파일 사본과 working-tree.patch·staged.patch 보관. Git stash 메시지: backup before DongHa main speech reconciliation 2026-10-27. 기존 변경을 다시 적용하지 않음.
+- 바뀐 파일과 이유: PROGRESS.md에 이번 복원·통합 검증 기록만 추가. 앱 코드는 기존 커밋 내용을 복원했으며 새 구현·의존성 추가 없음.
+- 실행한 테스트와 결과: frontend에서 node --test src/audio/recorder.test.js src/audio/speech.test.js — 19개 통과·0개 실패. npm run build 성공. 메뉴 데이터 확인 — 5개 카테고리, 메뉴 수 5/4/4/4/4, 총 21개. main의 메뉴·화면 이동·공용 UI·홈·메뉴·로그인·시연 화면과 차이 없음. main 조상 관계 확인 성공.
+- 브라우저 확인: 전체 메뉴 5개 분류·21개 항목 표시, 환전 신청 시연 화면 이동, 동의 없이 시작, Chrome 음성 서비스 안내·마이크 버튼 표시, 텍스트 질문 전송·모의 답변·메뉴 이동 버튼 표시 확인.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md·기존 테스트를 새로 편집하지 않음. 백업된 이전 변경에서 커밋된 버전으로 복원만 수행.
+- 확인하지 못한 것: 복원 후 실제 사용자 마이크 재발화, 사투리 정확도, 실제 백엔드·AI 호출, 전체 시나리오 재검증. 이전 실제 발화 성공은 사용자 확인 기록이며 이번에는 음성 모듈 자동 테스트와 UI 연결을 확인함.
+- 다음에 할 일: PC Chrome에서 새로고침 후 메뉴와 실제 음성 입력 재확인. 본인 작업 브랜치는 DongHa. GitHub 원격 푸시는 별도 요청 시 진행.
