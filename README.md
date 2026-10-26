@@ -1,47 +1,51 @@
 # won_take_hackathon
 원테이크 해커톤
 
-## Codex 프론트 골조
+## 프론트엔드
 
-작업 공간: `C:\ITStudy\98_HACKATHON_CODEX`, 브랜치: `codex/frontend-skeleton`.
-Claude 작업 공간과 파일을 공유하지 않는 Git worktree입니다. React 19.3.1, Vite 8.3.5를 사용하며 라우팅·아이콘 라이브러리는 추가하지 않았습니다.
+React 19.3.1, Vite 8.3.5를 사용하며 라우팅·아이콘 라이브러리는 추가하지 않았습니다.
 
 ```powershell
-cd C:\ITStudy\98_HACKATHON_CODEX\frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-브라우저에서 http://localhost:5174 를 엽니다. Claude의 5173과 나란히 비교할 수 있습니다. 포트가 사용 중이면 임의의 다른 포트로 넘어가지 않고 오류를 표시합니다.
+브라우저에서 http://localhost:5173 을 엽니다(SPEC 2.1). 포트가 사용 중이면 다른 포트로 넘어가지 않고 오류를 표시합니다.
 
 ```powershell
 npm run build
 npm run preview
 ```
 
-빌드 산출물은 `frontend/dist/`, 빌드 미리보기는 http://localhost:4174 입니다.
+빌드 산출물은 `frontend/dist/`, 빌드 미리보기는 http://localhost:4173 입니다.
 
 ### 가짜 응답 모드와 서버 연결
 
 - `VITE_USE_MOCK` 기본값은 `true`입니다. 백엔드 없이 화면을 확인할 수 있습니다. 가짜 모드의 질문·음성·대화는 고정 응답이며 실제 AI 분석이 아닙니다.
 - 실제 서버 연결: `frontend/.env.local`에 `VITE_USE_MOCK=false`를 적고 개발 서버를 다시 시작합니다. `/api` 요청은 `http://localhost:8080`으로 전달됩니다. 키는 프론트에 넣지 않습니다.
 - 동의·재진입 횟수·가짜 상담 접수는 새로고침 시 초기화합니다. `다시 띄우지 않기`만 `wontake-demo-never`라는 localStorage 키에 보관합니다. 재시연하려면 개발자 도구 콘솔에서 `localStorage.removeItem('wontake-demo-never')` 실행 후 새로고침합니다.
-- 처음 동의 후 전체 메뉴 → 즉시/예약이체 → 전체 메뉴를 오가며 60초 안에 이체 화면에 세 번 진입하면 고정 질문 세 개가 나옵니다. 질문을 선택하면 대화 빈자리에 선택 문구가 전달됩니다.
+- 처음 동의 후 홈 → 계좌이체 → 뒤로를 반복해 60초 안에 이체 화면에 세 번째로 들어가면, 휴대폰 틀 오른쪽 아래에 "도움이 필요하세요?" 말풍선이 뜹니다(가짜 모드는 정확히 세 번째 진입에서만 띄움). 말풍선을 누르면 AI 대화로 이동하고, 추천 질문 세 개가 함께 넘어갑니다.
+- 휴대폰 틀은 브라우저 높이에 맞춰 줄어들고(최대 844px), 틀 안에서만 스크롤됩니다. 말풍선은 스크롤과 상관없이 같은 자리에 있습니다.
+- 뒤로 버튼은 바로 전 화면으로 돌아갑니다. 홈으로 가면 지나온 기록을 비웁니다.
+- 로그인: 홈의 로그인 → 간편비밀번호 아무 숫자 6자리. 서버·DB 없이 화면 안에서만 유지되고 새로고침하면 로그아웃됩니다. 키패드 버튼은 클릭 기록에 남기지 않습니다.
+- 검색: 홈 검색창에서 검색하면 전체 메뉴로 이동해 결과를 보여 줍니다. 메뉴 이름과 분류 이름으로 찾습니다.
+- 전체 메뉴 위쪽 분류 바로가기(이체/출금, 계좌조회/관리, 인증/보안, 증명서/서류, 환전)를 누르면 그 분류로 스크롤합니다.
 - 메뉴 하이라이트: 개발자 도구에서 `highlightMenu('all-accounts')` 또는 휴대폰 틀 아래 개발 확인 버튼. 전체 메뉴로 이동·스크롤한 뒤 3초 강조합니다. 개발 확인 버튼과 전역 함수는 프로덕션 빌드에 노출하지 않습니다.
-- 로그인·알림·홈 이외 하단 탭·미구현 메뉴 바로가기는 비활성 자리입니다. 이체의 다음 버튼은 시연 안내만 띄웁니다.
+- 알림·홈 이외 하단 탭은 비활성 자리입니다. 이체의 다음 버튼은 시연 안내만 띄우고, 인증/보안·증명서/서류·환전 메뉴는 공통 시연 화면(`ServiceScreen`)을 씁니다.
 
 ### 팀원이 이어받을 자리
 
 | 담당 | 파일 / 연결점 |
 |---|---|
-| 역할 2 | `frontend/src/screens/ChatScreen.jsx`: `useNavigation().params`의 `intentId`, `question` 활용 |
+| 역할 2 | `frontend/src/screens/ChatScreen.jsx`: `useNavigation().params`의 `suggestions`(말풍선에서 넘어온 추천 질문 최대 3개) 또는 `intentId`, `question` 활용 |
 | 역할 2 | `frontend/src/screens/AgentScreen.jsx`: 휴대폰 틀 밖 PC 상담 화면 |
 | 역할 2 | `frontend/src/audio/recorder.js`: `startRecording`, `stopRecording`은 미구현 오류 발생 |
 | 역할 2 | `frontend/src/components/Popup.jsx`: 제목·children·버튼 목록·onClose를 받는 공용 틀 |
 | 역할 3·4 | `frontend/src/api/client.js`: SPEC 2.4 계약에 맞춘 호출, 서버 연결 모드로 검증 필요 |
-| 역할 3 | `frontend/src/data/menu.js`: 백엔드 메뉴 ID를 동일하게 유지. 프론트는 `screen`, 서버 카탈로그는 SPEC의 `screenId` 사용 |
+| 역할 3 | `frontend/src/data/menu.js`: 백엔드 `menu.json`과 `id`·`category`·`name`·`screenId`를 똑같이 유지. 분류 5개, 분류당 4~5개 |
 
-### 확인 결과 (2026-10-26)
+### 골조 확인 결과 (2026-10-26)
 
 프론트 자동 테스트는 SPEC 작업 2에 따라 추가하지 않았습니다. 브라우저 수동 확인 9개 통과, 최종 실패 0개:
 

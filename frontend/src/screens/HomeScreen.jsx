@@ -1,5 +1,118 @@
 // 담당: 역할 1 — 홈 화면
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigation } from '../navigation/index.jsx';
-const shortcuts = [['계좌조회','account','▤'],['계좌이체','transfer','↗'],['전체메뉴','menu','☷'],['AI 길잡이','chat','W'],['해외송금','transfer','◎'],['출금','transfer','↓'],['인증센터','menu','◇'],['동의설정','consent','✓']];
-export default function HomeScreen() { const { navigate } = useNavigation(); return <div className="home"><section className="welcome"><p className="eyebrow">나의 일상에 가까운 금융</p><h1>오늘도 반가워요<span className="blue">.</span></h1><p className="muted">필요한 금융, 한 번에 찾아보세요.</p></section><section className="hero"><span className="pill">WON TAKE</span><h2>어디로 가야 할지<br/>막막할 때, 함께.</h2><p>찾기 전에 먼저,<br/>해결될 때까지 끊김 없이</p><button data-track-id="hero-chat" onClick={() => navigate('chat')}>AI 길잡이 만나기 <span>↗</span></button><div className="hero-art" aria-hidden="true"><div className="orbit"/><div className="art-card">W<span>당신 곁의 길잡이</span></div><div className="art-dot">↗</div></div></section><section className="login-card"><div><strong>내 계좌, 한눈에</strong><p>로그인하고 자산을 확인하세요</p></div><button disabled className="secondary">로그인</button></section><section className="section"><div className="section-title"><h2>자주 찾는 서비스</h2><span>QUICK MENU</span></div><div className="shortcut-grid">{shortcuts.map(([label, screen, icon]) => <button key={label} data-track-id={`quick-${screen}-${label}`} onClick={() => navigate(screen)}><span className="shortcut-icon">{icon}</span><span>{label}</span></button>)}</div></section><section className="section useful"><h2>유용한 서비스</h2>{[['01','내 모든 계좌를 한곳에서','흩어진 계좌를 편하게 확인해요','account'],['02','말로 물어보는 금융','어려운 메뉴 이름은 몰라도 괜찮아요','chat'],['03','필요한 메뉴를 빠르게','전체 메뉴에서 원하는 업무를 찾아요','menu']].map(([n,title,sub,screen]) => <button className="service-card" key={n} data-track-id={`service-${n}`} onClick={() => navigate(screen)}><span className="service-number">{n}</span><span><strong>{title}</strong><small>{sub}</small></span><span className="chevron">›</span></button>)}</section><p className="demo-note">가상 데이터로 구성된 해커톤 시연 화면입니다.</p></div>; }
+import SearchBar from '../components/SearchBar.jsx';
+import { useAuth, logout } from '../session/auth.js';
+
+// [이름, 화면, 아이콘, 메뉴 id]
+const shortcuts = [
+  ['계좌조회', 'account', '▤', 'all-accounts'],
+  ['계좌이체', 'transfer', '↗', 'instant-transfer'],
+  ['전체메뉴', 'menu', '☷'],
+  ['AI 길잡이', 'chat', 'W'],
+  ['해외송금', 'transfer', '◎', 'overseas-remittance'],
+  ['환전', 'exchange', '↔', 'exchange-apply'],
+  ['증명서', 'certificate', '▧', 'balance-certificate'],
+  ['인증센터', 'security', '◇', 'auth-center'],
+];
+
+const DEMO_TOTAL_BALANCE = 8250000;
+
+export default function HomeScreen() {
+  const { navigate } = useNavigation();
+  const user = useAuth();
+  const [query, setQuery] = useState('');
+  return (
+    <div className="home">
+      <section className="welcome">
+        <p className="eyebrow">나의 일상에 가까운 금융</p>
+        <h1>
+          {user ? `${user.name}님, 반가워요` : '오늘도 반가워요'}
+          <span className="blue">.</span>
+        </h1>
+      </section>
+      <SearchBar
+        value={query}
+        onChange={setQuery}
+        onSubmit={(value) => navigate('menu', { query: value.trim() })}
+        trackPrefix="home"
+      />
+      <section className="hero">
+        <span className="pill">WON TAKE</span>
+        <h2>
+          어디로 가야 할지
+          <br />
+          막막할 때, 함께.
+        </h2>
+        <p>
+          찾기 전에 먼저,
+          <br />
+          해결될 때까지 끊김 없이
+        </p>
+        <button data-track-id="hero-chat" onClick={() => navigate('chat')}>
+          AI 길잡이 만나기 <span>↗</span>
+        </button>
+        <div className="hero-art" aria-hidden="true">
+          <div className="orbit" />
+          <div className="art-card">
+            W<span>당신 곁의 길잡이</span>
+          </div>
+          <div className="art-dot">↗</div>
+        </div>
+      </section>
+      {user ? (
+        <section className="login-card logged-in">
+          <div>
+            <strong>{user.name}님의 전체 잔액</strong>
+            <p className="balance">{DEMO_TOTAL_BALANCE.toLocaleString('ko-KR')}원</p>
+          </div>
+          <div className="login-actions">
+            <button
+              className="secondary"
+              data-track-id="home-accounts"
+              onClick={() => navigate('account', { menuId: 'all-accounts' })}
+            >
+              계좌 보기
+            </button>
+            <button className="text-link" data-track-id="home-logout" onClick={logout}>
+              로그아웃
+            </button>
+          </div>
+        </section>
+      ) : (
+        <section className="login-card">
+          <div>
+            <strong>내 계좌, 한눈에</strong>
+            <p>로그인하고 자산을 확인하세요</p>
+          </div>
+          <button
+            className="secondary"
+            data-track-id="home-login"
+            onClick={() => navigate('login')}
+          >
+            로그인
+          </button>
+        </section>
+      )}
+      <section className="section">
+        <div className="section-title">
+          <h2>자주 찾는 서비스</h2>
+          <span>QUICK MENU</span>
+        </div>
+        <div className="shortcut-grid">
+          {shortcuts.map(([label, screen, icon, menuId]) => (
+            <button
+              key={label}
+              data-track-id={`quick-${screen}-${label}`}
+              onClick={() => navigate(screen, menuId ? { menuId } : {})}
+            >
+              <span className="shortcut-icon">{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <p className="demo-note">가상 데이터로 구성된 해커톤 시연 화면입니다.</p>
+    </div>
+  );
+}

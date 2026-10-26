@@ -1,4 +1,60 @@
 // 담당: 역할 1 — 정수 잔액을 사용하는 가상 계좌 조회
 import React from 'react';
 import { useNavigation } from '../navigation/index.jsx';
-export default function AccountScreen() { const { navigate } = useNavigation(); return <div className="page"><button className="back" onClick={() => navigate('menu')} data-track-id="account-back">‹ 전체 메뉴</button><p className="eyebrow">MY ACCOUNTS</p><h1>내 계좌를 한눈에</h1><div className="balance-total"><span>전체 잔액 <small>가상 데이터</small></span><strong>{(8250000).toLocaleString('ko-KR')}<span> 원</span></strong></div><div className="section-title"><h2>입출금 · 저축</h2><span>2개</span></div>{[['WON 생활통장','DEMO-ACCOUNT-01',2450000],['WON 차곡차곡 적금','DEMO-ACCOUNT-02',5800000]].map(([name,id,balance]) => <section className="account-card" key={id}><div className="account-head"><span className="bank-icon">W</span><div><strong>{name}</strong><small>{id}</small></div></div><strong className="account-balance">{balance.toLocaleString('ko-KR')}<span> 원</span></strong><button className="secondary full" data-track-id={`account-transfer-${id}`} onClick={() => navigate('transfer')}>이체</button></section>)}<section className="history"><h2>최근 거래내역</h2><div className="empty"><span>≡</span><p>아직 표시할 거래내역이 없어요</p><small>팀원이 연결할 가상 거래내역 자리입니다.</small></div></section></div>; }
+import BackButton from '../layout/BackButton.jsx';
+export default function AccountScreen() {
+  const { navigate } = useNavigation();
+  return (
+    <div className="page">
+      <BackButton />
+      <p className="eyebrow">MY ACCOUNTS</p>
+      <h1>내 계좌를 한눈에</h1>
+      <div className="balance-total">
+        <span>
+          전체 잔액 <small>가상 데이터</small>
+        </span>
+        <strong>
+          {(8250000).toLocaleString('ko-KR')}
+          <span> 원</span>
+        </strong>
+      </div>
+      <div className="section-title">
+        <h2>입출금 · 저축</h2>
+        <span>2개</span>
+      </div>
+      {[
+        ['WON 생활통장', 'DEMO-ACCOUNT-01', 2450000],
+        ['WON 차곡차곡 적금', 'DEMO-ACCOUNT-02', 5800000],
+      ].map(([name, id, balance]) => (
+        <section className="account-card" key={id}>
+          <div className="account-head">
+            <span className="bank-icon">W</span>
+            <div>
+              <strong>{name}</strong>
+              <small>{id}</small>
+            </div>
+          </div>
+          <strong className="account-balance">
+            {balance.toLocaleString('ko-KR')}
+            <span> 원</span>
+          </strong>
+          <button
+            className="secondary full"
+            data-track-id={`account-transfer-${id}`}
+            onClick={() => navigate('transfer', { menuId: 'instant-transfer' })}
+          >
+            이체
+          </button>
+        </section>
+      ))}
+      <section className="history">
+        <h2>최근 거래내역</h2>
+        <div className="empty">
+          <span>≡</span>
+          <p>아직 표시할 거래내역이 없어요</p>
+          <small>팀원이 연결할 가상 거래내역 자리입니다.</small>
+        </div>
+      </section>
+    </div>
+  );
+}

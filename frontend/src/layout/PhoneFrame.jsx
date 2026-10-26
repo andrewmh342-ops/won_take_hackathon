@@ -3,4 +3,17 @@ import React from 'react';
 import TopBar from './TopBar.jsx';
 import BottomTab from './BottomTab.jsx';
 import Bubble from '../components/Bubble.jsx';
-export default function PhoneFrame({ children }) { return <div className="phone"><div className="status-bar"><span>9:41</span><span className="status-right">▂▄▆ &nbsp; ◔ &nbsp; ▰</span></div><TopBar/><main className="phone-main">{children}</main><Bubble/><BottomTab/></div>; }
+export default function PhoneFrame({ children }) {
+  return (
+    <div className="phone">
+      <div className="status-bar">
+        <span>9:41</span>
+        <span className="status-right">▂▄▆ &nbsp; ◔ &nbsp; ▰</span>
+      </div>
+      <TopBar />
+      <main className="phone-main">{children}</main>
+      <Bubble />
+      <BottomTab />
+    </div>
+  );
+}
