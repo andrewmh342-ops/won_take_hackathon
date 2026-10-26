@@ -19,7 +19,7 @@ export default function SearchBar({ value, onChange, onSubmit, trackPrefix }) {
         aria-label="메뉴 검색"
         placeholder="찾으시는 메뉴를 입력하세요"
         value={value}
-        maxLength={2000}
+        maxLength={100}
         onChange={(event) => onChange(event.target.value)}
         data-track-id={`${trackPrefix}-search`}
       />

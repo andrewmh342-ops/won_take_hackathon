@@ -59,7 +59,8 @@ npm run preview
 
 - 대화 화면은 텍스트 질문과 말풍선 추천 질문을 `/api/chat` 계약에 맞춰 보냅니다. 응답의 `normalized`, `reply`, `steps`, `menuId`를 표시하며 실제 거래는 실행하지 않습니다.
 - 음성 질문은 PC Chrome Web Speech API로 최대 30초 동안 한국어(`ko-KR`)를 인식합니다. 확정된 글자만 `/api/chat`에 `inputType: VOICE`로 전달합니다. WAV 변환·`/api/voice`·네이버 인증 키는 사용하지 않습니다. 기존 WAV 모듈과 테스트는 보존했습니다.
-- `SUGGEST_HANDOFF` 응답에서 상담 요약을 요청합니다. 고객이 네 항목을 확인하고 [확인 후 전달]을 누른 경우에만 `/api/handoff`를 호출합니다. [취소]는 접수 API를 호출하지 않습니다.
+- 상단 AI 버튼 왼쪽의 [상담] 버튼은 어느 화면에서든 항상 누를 수 있습니다. 금융앱 이용 불편 질문인데 AI가 상담을 권하거나(`handoffSuggested`) 찾지 못함이 연속 2번이면 노란색으로 강조합니다.
+- AI 대화는 금융앱 이용 불편 질문만 답합니다. 날씨·잡담·코딩 같은 범위 밖 질문은 고정 안내로 거절하고, 질문 길이·횟수와 Claude 호출 총량에 상한을 둡니다(SPEC R2, `docs/claude-local-test.md`). 버튼을 누르면 서버가 `AiClient.summarize`로 네 항목 요약을 만들고(FAKE 모드는 기록 기반 요약), 고객이 네 항목을 확인하고 [확인 후 전달]을 누른 경우에만 `/api/handoff`를 호출합니다. [취소]는 접수 API를 호출하지 않습니다.
 - 상담사 화면은 `/api/handoff/tickets`에서 받은 접수 목록과 선택한 티켓의 요약, 클릭 기록, 대화 원문을 보여 줍니다.
 - 가짜 응답 모드에서는 AI 답변·표준어 정리·상담 요약이 예시입니다. 음성 인식은 Chrome 서비스에 의존하며, 실제 발화 인식 여부는 사용자 PC에서 별도로 확인해야 합니다.
 - 음성 인식·기존 WAV 단위 테스트: `cd frontend` 후 `node --test src/audio/*.test.js`

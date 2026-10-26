@@ -11,6 +11,9 @@ export function NavigationProvider({ children }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [bubble, setBubble] = useState(null);
+  // 상단 상담 버튼: 강조 여부(대화 결과로 정함)와, 다른 화면에서 눌렀을 때 대화 화면이 이어서 열 요청
+  const [handoffHint, setHandoffHint] = useState(false);
+  const [handoffPending, setHandoffPending] = useState(false);
   const current = useRef({ route, agreed });
   const latestAnalysis = useRef(null);
   current.current = { route, agreed };
@@ -67,6 +70,10 @@ export function NavigationProvider({ children }) {
       active = false;
     };
   }, [route.key, ready, agreed]);
+  const openHandoff = useCallback(() => {
+    setHandoffPending(true);
+    if (current.current.route.screen !== 'chat') navigate('chat');
+  }, [navigate]);
   async function changeConsent(value) {
     await api.putConsent(value);
     setAgreed(value);
@@ -86,7 +93,10 @@ export function NavigationProvider({ children }) {
   }
   return (
     <Navigation.Provider
-      value={{ ...route, navigate, goBack, agreed, changeConsent, bubble, setBubble }}
+      value={{
+        ...route, navigate, goBack, agreed, changeConsent, bubble, setBubble,
+        handoffHint, setHandoffHint, handoffPending, setHandoffPending, openHandoff,
+      }}
     >
       <div onClickCapture={onClickCapture}>
         {ready ? (

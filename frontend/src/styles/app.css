@@ -143,6 +143,23 @@ small {
   gap: 10px;
   align-items: center;
 }
+.handoff-button {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 800;
+  background: var(--primary-soft);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  height: 32px;
+  padding: 0 9px;
+}
+/* 상담 추천: 파란 화면에서 눈에 띄도록 노란색으로 강조한다. */
+.handoff-button.highlighted {
+  color: var(--text);
+  background: var(--highlight-soft);
+  border-color: var(--highlight);
+  box-shadow: 0 0 0 3px var(--highlight-ring);
+}
 .ai-button {
   font-size: 12px;
   color: var(--primary);
@@ -1128,8 +1145,41 @@ input::placeholder {
   text-align: left;
   text-decoration: underline;
 }
+.handoff-hint {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--highlight-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.chat-composer {
+  position: static;
+  margin: 0;
+  border-top: 0;
+}
+.chat-handoff {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 0;
+}
+.chat-handoff p {
+  margin: 0;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
 .chat-handoff-button {
-  margin-top: 12px;
+  flex: none;
+  padding: 8px 14px;
+  border: 2px solid transparent;
+}
+.chat-handoff.highlighted .chat-handoff-button {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-soft);
 }
 .chat-composer {
   position: sticky;

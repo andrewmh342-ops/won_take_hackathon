@@ -17,6 +17,8 @@ public class AiConfiguration {
         if (key.isEmpty()) throw new IllegalStateException("Claude 모드에는 ANTHROPIC_API_KEY가 필요합니다.");
         return new ClaudeAiClient(URI.create("https://api.anthropic.com/v1/messages"), key,
             env.getProperty("app.ai.model"), env.getProperty("app.ai.workspace", ""),
-            env.getProperty("app.ai.version"), Duration.ofSeconds(45));
+            env.getProperty("app.ai.version"), Duration.ofSeconds(45),
+            Integer.parseInt(env.getProperty("app.ai.max-calls", "500").trim()),
+            !"off".equalsIgnoreCase(env.getProperty("app.ai.fallbacks", "default").trim()));
     }
 }

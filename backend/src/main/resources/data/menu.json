@@ -4,146 +4,365 @@
     "category": "이체/출금",
     "name": "즉시/예약이체",
     "screenId": "transfer",
-    "description": "즉시/예약이체 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "내 계좌에서 다른 계좌로 돈을 지금 바로 보내거나, 원하는 날짜·시간에 보내도록 예약한다. 받는 분 계좌번호와 금액을 입력한 뒤 본인 확인을 거쳐 보낸다.",
+    "guide": [
+      "출금할 내 계좌를 고른다",
+      "받는 분 은행과 계좌번호를 입력한다",
+      "보낼 금액을 입력하고 [다음]을 누른다",
+      "받는 분 이름을 확인한 뒤 간편비밀번호로 본인 확인을 한다"
+    ],
+    "commonIssues": [
+      "금액이 1회·1일 이체한도를 넘으면 이체가 되지 않는다. 이체한도 조회/변경에서 남은 한도를 확인할 수 있다.",
+      "받는 분 이름이 다르게 나오면 계좌번호를 잘못 입력했을 수 있다. 보내기 전에 다시 확인한다.",
+      "인증서가 만료되었거나 등록되지 않은 기기면 본인 확인 단계에서 멈출 수 있다. 인증센터에서 확인한다."
+    ],
+    "relatedMenuIds": ["transfer-limit-manage", "transfer-history"]
   },
   {
     "id": "multi-transfer",
     "category": "이체/출금",
     "name": "다건이체",
     "screenId": "transfer",
-    "description": "다건이체 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "여러 사람에게 한 번에 돈을 보낸다. 받는 분 목록을 차례로 추가한 뒤 한 번의 본인 확인으로 함께 보낸다.",
+    "guide": [
+      "출금할 내 계좌를 고른다",
+      "[받는 분 추가]로 계좌번호와 금액을 한 줄씩 넣는다",
+      "목록과 합계 금액을 확인한 뒤 본인 확인을 한다"
+    ],
+    "commonIssues": [
+      "보내는 합계 금액이 1일 이체한도를 넘으면 일부가 보내지지 않을 수 있다. 이체한도 조회/변경에서 확인한다.",
+      "한 명에게만 보낼 때는 즉시/예약이체가 더 간단하다."
+    ],
+    "relatedMenuIds": ["instant-transfer", "transfer-limit-manage"]
   },
   {
     "id": "transfer-history",
     "category": "이체/출금",
     "name": "이체내역조회",
     "screenId": "account",
-    "description": "이체내역조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "내가 보낸 이체와 예약해 둔 이체의 결과를 기간별로 확인한다. 보낸 날짜, 받는 분, 금액, 처리 결과를 볼 수 있다.",
+    "guide": [
+      "조회할 내 계좌를 고른다",
+      "기간(오늘, 1주일, 1개월 등)을 고른다",
+      "목록에서 거래를 누르면 받는 분과 처리 결과가 보인다"
+    ],
+    "commonIssues": [
+      "예약이체는 실행일이 되기 전에는 '예약' 상태로만 보인다.",
+      "이체가 아닌 입금·카드 결제까지 모두 보려면 거래내역조회가 맞다."
+    ],
+    "relatedMenuIds": ["transaction-history", "instant-transfer"]
   },
   {
     "id": "overseas-remittance",
     "category": "이체/출금",
     "name": "해외송금",
     "screenId": "transfer",
-    "description": "해외송금 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "해외에 있는 계좌로 외화를 보낸다. 받는 나라와 통화, 받는 분 정보, 받는 은행 정보를 입력하고, 적용 환율과 수수료를 확인한 뒤 신청한다.",
+    "guide": [
+      "받는 나라와 통화를 고른다",
+      "받는 분 영문 이름, 계좌번호, 받는 은행 정보를 입력한다",
+      "보낼 금액과 적용 환율·수수료를 확인한다",
+      "송금 목적을 고르고 본인 확인 후 신청한다"
+    ],
+    "commonIssues": [
+      "받는 은행 정보(은행 코드 등)를 모르면 진행이 멈춘다. 받는 분에게 미리 받아 두어야 한다.",
+      "국내 다른 은행 계좌로 보내는 것이라면 해외송금이 아니라 즉시/예약이체를 쓴다.",
+      "외화를 현금으로 받으려는 것이라면 환전 신청이 맞다."
+    ],
+    "relatedMenuIds": ["instant-transfer", "exchange-apply"]
   },
   {
     "id": "atm-withdrawal",
     "category": "이체/출금",
     "name": "ATM/영업점 출금",
     "screenId": "transfer",
-    "description": "ATM/영업점 출금 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "카드나 통장 없이 앱에서 출금을 미리 신청해 두고, ATM이나 영업점에서 인증번호로 현금을 찾는다.",
+    "guide": [
+      "출금할 내 계좌와 금액을 입력한다",
+      "앱에 표시된 인증번호를 확인한다",
+      "ATM에서 [앱 출금]을 고르고 인증번호를 입력한다"
+    ],
+    "commonIssues": [
+      "신청 후 정해진 시간이 지나면 인증번호를 다시 받아야 한다.",
+      "ATM에 따라 앱 출금 메뉴가 없을 수 있다. 화면에 메뉴가 없으면 다른 ATM이나 영업점을 이용한다."
+    ],
+    "relatedMenuIds": ["all-accounts"]
   },
   {
     "id": "all-accounts",
     "category": "계좌조회/관리",
     "name": "전체계좌조회",
     "screenId": "account",
-    "description": "전체계좌조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "내 이름으로 된 입출금·저축 계좌를 한 화면에서 보고 계좌별 잔액을 확인한다. 계좌를 누르면 그 계좌의 거래내역으로 이어진다.",
+    "guide": [
+      "전체계좌조회를 연다",
+      "입출금·저축 등 계좌 종류별 목록과 잔액을 확인한다",
+      "계좌를 누르면 그 계좌의 거래내역을 볼 수 있다"
+    ],
+    "commonIssues": [
+      "해지한 계좌는 이 목록에 보이지 않는다. 해지계좌조회에서 확인한다.",
+      "오래 쓰지 않은 계좌가 안 보이면 휴면계좌일 수 있다. 휴면계좌조회에서 확인한다."
+    ],
+    "relatedMenuIds": ["transaction-history", "dormant-accounts"]
   },
   {
     "id": "transaction-history",
     "category": "계좌조회/관리",
     "name": "거래내역조회",
     "screenId": "account",
-    "description": "거래내역조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "계좌에 들어오고 나간 모든 거래(입금, 출금, 이체, 카드 결제 등)를 기간별로 확인한다.",
+    "guide": [
+      "조회할 계좌를 고른다",
+      "기간과 입금·출금 구분을 고른다",
+      "거래를 누르면 상대방과 시간이 보인다"
+    ],
+    "commonIssues": [
+      "내가 보낸 이체의 처리 결과만 따로 보려면 이체내역조회가 편하다.",
+      "거래내역을 서류로 내야 한다면 거래내역 증명서 발급을 쓴다."
+    ],
+    "relatedMenuIds": ["transfer-history", "transaction-certificate"]
   },
   {
     "id": "closed-accounts",
     "category": "계좌조회/관리",
     "name": "해지계좌조회",
     "screenId": "account",
-    "description": "해지계좌조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "이미 해지한 계좌의 목록과 해지 날짜를 확인한다.",
+    "guide": [
+      "해지계좌조회를 연다",
+      "조회 기간을 고른다",
+      "계좌를 누르면 해지 날짜와 계좌 종류가 보인다"
+    ],
+    "commonIssues": [
+      "해지한 계좌는 다시 쓸 수 없다. 돈을 받으려면 지금 쓰는 계좌를 알려 줘야 한다.",
+      "해지하지 않았는데 안 보이는 계좌는 휴면계좌일 수 있다."
+    ],
+    "relatedMenuIds": ["dormant-accounts", "all-accounts"]
   },
   {
     "id": "dormant-accounts",
     "category": "계좌조회/관리",
     "name": "휴면계좌조회",
     "screenId": "account",
-    "description": "휴면계좌조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "오랫동안 거래가 없어 휴면 상태가 된 계좌와 남은 돈이 있는지 확인한다.",
+    "guide": [
+      "휴면계좌조회를 연다",
+      "본인 확인을 한다",
+      "휴면 계좌 목록과 남은 돈을 확인한다"
+    ],
+    "commonIssues": [
+      "휴면 계좌의 돈을 찾거나 옮기는 절차는 이 시연 앱에서 진행하지 않는다. 상담사에게 이어서 문의할 수 있다.",
+      "전체계좌조회에 계좌가 보이지 않는 이유가 휴면일 수 있다."
+    ],
+    "relatedMenuIds": ["all-accounts", "closed-accounts"]
   },
   {
     "id": "auth-center",
     "category": "인증/보안",
     "name": "인증센터",
     "screenId": "security",
-    "description": "인증센터 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "간편비밀번호, 인증서, 기기 등록 등 본인 확인 수단을 한곳에서 확인하고 관리한다. 인증이 계속 실패할 때 먼저 확인하는 곳이다.",
+    "guide": [
+      "인증센터를 연다",
+      "간편비밀번호·인증서·등록 기기 상태를 확인한다",
+      "문제가 있는 항목을 눌러 재등록이나 재발급 메뉴로 간다"
+    ],
+    "commonIssues": [
+      "간편비밀번호를 여러 번 틀리면 잠길 수 있다. 잠긴 경우 재등록이 필요하다.",
+      "휴대폰을 바꿨다면 새 기기 등록이 필요할 수 있다. 기기 등록 관리에서 확인한다.",
+      "인증서 기간이 끝났으면 인증서 발급/관리에서 다시 받는다."
+    ],
+    "relatedMenuIds": ["certificate-manage", "device-manage"]
   },
   {
     "id": "certificate-manage",
     "category": "인증/보안",
     "name": "인증서 발급/관리",
     "screenId": "security",
-    "description": "인증서 발급/관리 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "금융 거래에 쓰는 인증서를 새로 받거나, 기간을 늘리거나, 다른 기기로 옮긴다.",
+    "guide": [
+      "인증서 발급/관리를 연다",
+      "새로 받기·기간 연장·가져오기 중 하나를 고른다",
+      "본인 확인을 마치고 인증서 비밀번호를 정한다"
+    ],
+    "commonIssues": [
+      "인증서 기간이 끝나면 이체 같은 거래의 본인 확인 단계에서 멈춘다.",
+      "인증서 비밀번호를 잊었다면 새로 발급받아야 할 수 있다."
+    ],
+    "relatedMenuIds": ["auth-center"]
   },
   {
     "id": "transfer-limit-manage",
     "category": "인증/보안",
     "name": "이체한도 조회/변경",
     "screenId": "security",
-    "description": "이체한도 조회/변경 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "한 번에 보낼 수 있는 금액(1회 한도)과 하루에 보낼 수 있는 금액(1일 한도), 오늘 남은 한도를 확인하고, 한도를 줄이거나 늘리는 신청을 한다.",
+    "guide": [
+      "이체한도 조회/변경을 연다",
+      "1회 한도, 1일 한도, 오늘 남은 한도를 확인한다",
+      "한도를 바꾸려면 [변경]을 누르고 원하는 금액을 입력한다",
+      "한도를 늘릴 때는 추가 본인 확인을 거친다"
+    ],
+    "commonIssues": [
+      "이체가 안 되는 가장 흔한 이유 중 하나가 한도 초과다. 오늘 남은 한도를 먼저 확인한다.",
+      "한도를 늘리는 데에는 추가 인증이 필요하고, 조건에 따라 앱에서 바로 되지 않을 수 있다. 그럴 때는 상담사 연결이 도움이 된다.",
+      "한도를 줄이는 것은 보통 바로 적용된다."
+    ],
+    "relatedMenuIds": ["instant-transfer", "auth-center"]
   },
   {
     "id": "device-manage",
     "category": "인증/보안",
     "name": "기기 등록 관리",
     "screenId": "security",
-    "description": "기기 등록 관리 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "이 앱으로 금융 거래를 할 수 있는 휴대폰(기기)을 등록하거나 해제한다.",
+    "guide": [
+      "기기 등록 관리를 연다",
+      "등록된 기기 목록을 확인한다",
+      "새 휴대폰이면 [이 기기 등록]을 누르고 본인 확인을 한다"
+    ],
+    "commonIssues": [
+      "휴대폰을 바꾸거나 앱을 다시 설치하면 기기 등록을 다시 해야 할 수 있다.",
+      "등록 가능한 기기 수에 제한이 있으면 쓰지 않는 기기를 먼저 해제한다."
+    ],
+    "relatedMenuIds": ["auth-center"]
   },
   {
     "id": "balance-certificate",
     "category": "증명서/서류",
     "name": "잔액증명서 발급",
     "screenId": "certificate",
-    "description": "잔액증명서 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "특정 날짜 기준으로 계좌에 얼마가 있었는지 증명하는 서류를 발급한다. 유학, 비자, 입찰 등에 제출할 때 쓴다.",
+    "guide": [
+      "잔액증명서 발급을 연다",
+      "증명할 계좌와 기준 날짜를 고른다",
+      "한글·영문 중 언어와 받는 방법을 고른다"
+    ],
+    "commonIssues": [
+      "제출처가 영문 서류를 요구하는지 먼저 확인한다.",
+      "거래 기록을 증명해야 한다면 잔액증명서가 아니라 거래내역 증명서가 맞다."
+    ],
+    "relatedMenuIds": ["transaction-certificate", "financial-confirmation"]
   },
   {
     "id": "transaction-certificate",
     "category": "증명서/서류",
     "name": "거래내역 증명서 발급",
     "screenId": "certificate",
-    "description": "거래내역 증명서 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "정해진 기간 동안의 거래내역을 은행이 확인한 서류로 발급한다.",
+    "guide": [
+      "거래내역 증명서 발급을 연다",
+      "계좌와 기간을 고른다",
+      "받는 방법을 고르고 발급한다"
+    ],
+    "commonIssues": [
+      "화면으로만 확인하면 되는 경우에는 거래내역조회로 충분하다.",
+      "기간이 길면 발급 서류가 여러 장이 될 수 있다."
+    ],
+    "relatedMenuIds": ["transaction-history", "balance-certificate"]
   },
   {
     "id": "financial-confirmation",
     "category": "증명서/서류",
     "name": "금융거래확인서 발급",
     "screenId": "certificate",
-    "description": "금융거래확인서 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "계좌 보유 사실이나 대출 등 은행과의 거래 관계를 확인하는 서류를 발급한다.",
+    "guide": [
+      "금융거래확인서 발급을 연다",
+      "확인할 거래 종류와 기준 날짜를 고른다",
+      "받는 방법을 고르고 발급한다"
+    ],
+    "commonIssues": [
+      "어떤 서류가 필요한지 모르겠다면 제출처가 요구한 서류 이름을 먼저 확인한다.",
+      "계좌 잔액만 증명하면 되는 경우에는 잔액증명서가 맞다."
+    ],
+    "relatedMenuIds": ["balance-certificate", "bankbook-copy"]
   },
   {
     "id": "bankbook-copy",
     "category": "증명서/서류",
     "name": "통장 사본 발급",
     "screenId": "certificate",
-    "description": "통장 사본 발급 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "계좌번호와 예금주가 적힌 통장 사본을 파일로 받는다. 회사·기관에 급여나 지원금을 받을 계좌를 알려 줄 때 쓴다.",
+    "guide": [
+      "통장 사본 발급을 연다",
+      "계좌를 고른다",
+      "파일로 저장하거나 공유한다"
+    ],
+    "commonIssues": [
+      "해지한 계좌나 휴면 계좌는 통장 사본을 받을 수 없다.",
+      "은행 직인이 찍힌 공식 서류가 필요하면 금융거래확인서를 요구하는 경우가 있다."
+    ],
+    "relatedMenuIds": ["all-accounts", "financial-confirmation"]
   },
   {
     "id": "exchange-apply",
     "category": "환전",
     "name": "환전 신청",
     "screenId": "exchange",
-    "description": "환전 신청 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "여행 등에 쓸 외화 현금을 앱에서 미리 신청하고, 고른 영업점이나 공항 등에서 받는다.",
+    "guide": [
+      "환전 신청을 연다",
+      "통화와 금액을 고르고 적용 환율을 확인한다",
+      "받을 장소와 날짜를 고른다",
+      "출금 계좌를 고르고 본인 확인 후 신청한다"
+    ],
+    "commonIssues": [
+      "받을 장소마다 준비 가능한 날짜가 다를 수 있다.",
+      "외국 계좌로 돈을 보내려는 것이라면 환전이 아니라 해외송금이 맞다.",
+      "신청을 바꾸거나 취소하려면 환전 내역 조회에서 신청 건을 확인한다."
+    ],
+    "relatedMenuIds": ["exchange-rate", "exchange-history"]
   },
   {
     "id": "exchange-rate",
     "category": "환전",
     "name": "환율 조회",
     "screenId": "exchange",
-    "description": "환율 조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "통화별 지금 환율과 최근 변동을 확인한다. 살 때와 팔 때 환율이 다르다.",
+    "guide": [
+      "환율 조회를 연다",
+      "통화를 고른다",
+      "살 때·팔 때 환율과 최근 변동을 확인한다"
+    ],
+    "commonIssues": [
+      "화면의 환율은 조회 시점 기준이며 실제 신청할 때 적용 환율과 다를 수 있다.",
+      "바로 외화를 사려면 환전 신청으로 이어 간다."
+    ],
+    "relatedMenuIds": ["exchange-apply"]
   },
   {
     "id": "exchange-history",
     "category": "환전",
     "name": "환전 내역 조회",
     "screenId": "exchange",
-    "description": "환전 내역 조회 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "신청한 환전과 재환전의 진행 상태(신청, 준비 완료, 수령 완료, 취소)와 적용 환율을 확인한다.",
+    "guide": [
+      "환전 내역 조회를 연다",
+      "기간을 고른다",
+      "신청 건을 누르면 받을 장소와 진행 상태가 보인다"
+    ],
+    "commonIssues": [
+      "돈을 보낸 이체 기록을 찾는 것이라면 이체내역조회가 맞다.",
+      "아직 받지 않은 신청 건은 여기에서 상태를 확인한다."
+    ],
+    "relatedMenuIds": ["exchange-apply", "exchange-return"]
   },
   {
     "id": "exchange-return",
     "category": "환전",
     "name": "외화 재환전",
     "screenId": "exchange",
-    "description": "외화 재환전 메뉴로 이동하는 시연 화면. 실제 조회나 거래는 수행하지 않음."
+    "description": "쓰고 남은 외화를 다시 원화로 바꾼다. 재환전할 때 적용 환율을 확인한 뒤 신청한다.",
+    "guide": [
+      "외화 재환전을 연다",
+      "통화와 금액을 입력하고 적용 환율을 확인한다",
+      "원화를 받을 내 계좌를 고르고 신청한다"
+    ],
+    "commonIssues": [
+      "동전은 재환전이 되지 않거나 조건이 다를 수 있다.",
+      "외화를 살 때와 팔 때 환율이 달라 받는 원화가 예상보다 적을 수 있다."
+    ],
+    "relatedMenuIds": ["exchange-history", "exchange-rate"]
   }
 ]

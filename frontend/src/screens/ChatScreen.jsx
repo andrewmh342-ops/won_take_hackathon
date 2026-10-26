@@ -10,6 +10,7 @@ import { findMenu } from '../data/menu.js';
 const responseText = {
   NOT_FOUND: '말씀하신 내용을 찾지 못했어요. 다른 표현으로 다시 물어봐 주세요.',
   ASK_TEXT_INPUT: '음성을 확인하지 못했어요. 글자로 입력해 주세요.',
+  OUT_OF_SCOPE: 'WON테이크는 이 앱을 쓰다 막힌 점만 도와드려요.',
   SUGGEST_HANDOFF: '상담사에게 지금까지의 내용을 전달할까요?',
 };
 
@@ -21,7 +22,7 @@ const summaryFields = [
 ];
 
 export default function ChatScreen() {
-  const { params, navigate } = useNavigation();
+  const { params, navigate, setHandoffHint, handoffPending, setHandoffPending } = useNavigation();
   const [messages, setMessages] = useState([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [historyAttempt, setHistoryAttempt] = useState(0);
@@ -75,6 +76,7 @@ export default function ChatScreen() {
             mode: result.mode,
             steps: Array.isArray(result.steps) ? result.steps : [],
             notFoundStreak: result.notFoundStreak,
+            handoffSuggested: result.handoffSuggested,
           },
         ]);
       } catch (requestError) {
@@ -106,6 +108,26 @@ export default function ChatScreen() {
       cancelRecognition();
     };
   }, []);
+
+  const lastAnswer = messages.findLast((message) => message.role === 'ASSISTANT');
+  const handoffHighlighted = Boolean(
+    lastAnswer &&
+      lastAnswer.type !== 'OUT_OF_SCOPE' &&
+      (lastAnswer.handoffSuggested ||
+        lastAnswer.type === 'SUGGEST_HANDOFF' ||
+        lastAnswer.notFoundStreak >= 2),
+  );
+  // 상단 상담 버튼의 강조는 마지막 AI 답으로 정한다. 버튼 자체는 상단에 항상 있다.
+  useEffect(() => {
+    if (historyReady) setHandoffHint(handoffHighlighted);
+  }, [historyReady, handoffHighlighted, setHandoffHint]);
+
+  // 다른 화면이나 이 화면의 상단 상담 버튼을 누르면 대화 기록을 불러온 뒤 요약을 연다.
+  useEffect(() => {
+    if (!historyReady || !handoffPending) return;
+    setHandoffPending(false);
+    void requestHandoff();
+  }, [historyReady, handoffPending]);
 
   async function submit(event) {
     event.preventDefault();
@@ -157,6 +179,7 @@ export default function ChatScreen() {
       const result = await postHandoff(summary);
       setReceipt(result);
       setSummary(null);
+      setHandoffHint(false);
       setMessages((current) => [
         ...current,
         {
@@ -174,6 +197,7 @@ export default function ChatScreen() {
   const suggestions = Array.isArray(params.suggestions) ? params.suggestions.slice(0, 3) : [];
   const isRecording = micState === 'recording';
   const inputDisabled = !historyReady || busy || ['starting', 'recording', 'stopping', 'transcribing'].includes(micState);
+  // 상담 버튼은 항상 쓸 수 있다. AI가 권하거나 찾지 못함이 연속 2번이면 강조만 한다(SPEC R3).
 
   return (
     <section className="page chat-page">
@@ -223,9 +247,6 @@ export default function ChatScreen() {
         {messages.map((message, index) => {
           const menuItems = [...new Set(message.menuIds ?? (message.menuId ? [message.menuId] : []))]
             .slice(0, 2).map(findMenu).filter(Boolean);
-          const canHandoff =
-            message.type === 'SUGGEST_HANDOFF' ||
-            (message.type === 'NOT_FOUND' && message.notFoundStreak >= 2);
 
           return (
             <li
@@ -266,16 +287,6 @@ export default function ChatScreen() {
                   {menuItem.name} 화면 보기
                 </button>
               ))}
-              {canHandoff && (
-                <button
-                  className="secondary chat-handoff-button"
-                  type="button"
-                  disabled={summaryLoading || handoffBusy}
-                  onClick={requestHandoff}
-                >
-                  {summaryLoading ? '내용을 정리하고 있어요' : '상담사에게 전달하기'}
-                </button>
-              )}
             </li>
           );
         })}
@@ -312,6 +323,12 @@ export default function ChatScreen() {
         마이크를 누르면 Chrome 음성 인식 서비스에서 음성이 처리될 수 있어요.
         인터넷 연결이 필요하며, 인식이 안 되면 글자로 입력해 주세요.
       </p>
+      {handoffHighlighted && (
+        <p className="handoff-hint" role="status">
+          답을 찾기 어려우면 위의 <strong>상담</strong> 버튼으로 지금까지 내용을 상담사에게 넘길 수 있어요.
+        </p>
+      )}
+      {summaryLoading && <p role="status">상담사에게 넘길 내용을 정리하고 있어요.</p>}
       <form className="chat-composer" onSubmit={submit}>
         <label className="sr-only" htmlFor="chat-draft">질문 입력</label>
         <input
@@ -320,7 +337,7 @@ export default function ChatScreen() {
           onChange={(event) => setDraft(event.target.value)}
           placeholder="무엇이 궁금하세요?"
           autoComplete="off"
-          maxLength={2000}
+          maxLength={500}
           disabled={inputDisabled}
           data-track-id="chat-text-input"
         />

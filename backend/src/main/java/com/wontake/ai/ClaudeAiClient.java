@@ -7,17 +7,30 @@ import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClaudeAiClient implements AiClient {
+    /** Sonnet 5.5는 기본으로 사고(thinking)하고 그 토큰도 max_tokens에 들어간다. 답이 잘리지 않게 여유를 둔다. */
+    static final int MAX_TOKENS = 4096;
+    static final String FALLBACK_BETA = "server-side-fallback-2026-07-01";
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JsonMapper json = new JsonMapper();
     private final URI endpoint;
-    private final String key, model, workspace, version, system, behaviorSystem;
+    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem;
     private final Duration timeout;
+    private final int maxCalls;
+    private final boolean fallbacks;
+    private final AtomicInteger calls = new AtomicInteger();
     public ClaudeAiClient(URI endpoint, String key, String model, String workspace, String version, Duration timeout) {
+        this(endpoint,key,model,workspace,version,timeout,Integer.MAX_VALUE,false);
+    }
+    /** maxCalls: 서버를 켠 뒤 Claude를 부를 수 있는 총 횟수(크레딧 보호). fallbacks: 안전 거절 시 서버 측 대체 모델 재시도. */
+    public ClaudeAiClient(URI endpoint, String key, String model, String workspace, String version, Duration timeout, int maxCalls, boolean fallbacks) {
         this.endpoint=endpoint; this.key=key; this.model=model; this.workspace=workspace; this.version=version; this.timeout=timeout;
+        this.maxCalls=maxCalls; this.fallbacks=fallbacks;
         system=readPrompt("chat-system.txt");
         behaviorSystem=readPrompt("behavior-system.txt");
+        handoffSystem=readPrompt("handoff-system.txt");
     }
     private String readPrompt(String name) {
         try (var stream = getClass().getResourceAsStream("/ai/"+name)) {
@@ -31,31 +44,53 @@ public class ClaudeAiClient implements AiClient {
                 "reply", Map.of("type", "string"),
                 "normalized", Map.of("type", "string"),
                 "menuIds", Map.of("type", "array", "items", Map.of("type", "string", "enum", context.menus().stream().map(m -> m.id()).toList())),
-                "steps", Map.of("type", "array", "items", Map.of("type", "string")));
-            var schema = Map.of("type", "object", "properties", properties, "required", List.of("reply", "normalized", "menuIds", "steps"), "additionalProperties", false);
-            var value=call(context,schema,system);
-            if (!value.isObject() || value.size()!=4 || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
-                || !value.path("menuIds").isArray() || !value.path("steps").isArray()) throw invalid();
-            for (var node : value.path("menuIds")) if (!node.isTextual()) throw invalid();
-            for (var node : value.path("steps")) if (!node.isTextual()) throw invalid();
-            return json.treeToValue(value, Answer.class);
+                "steps", Map.of("type", "array", "items", Map.of("type", "string")),
+                "handoff", Map.of("type", "boolean"),
+                "scope", Map.of("type", "string", "enum", List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE)));
+            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff"), "additionalProperties", false);
+            var value=call(context,schema,system,"low");
+            // schema가 scope·handoff를 요구하지만, 빠진 응답은 범위 안·강조 없음으로 본다.
+            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope");
+            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
+                || !value.path("menuIds").isArray() || !value.path("steps").isArray() || hasHandoff && !value.path("handoff").isBoolean()
+                || hasScope && !Set.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE).contains(value.path("scope").asText())) throw invalid();
+            var menuIds=new ArrayList<String>(); var steps=new ArrayList<String>();
+            for (var node : value.path("menuIds")) { if (!node.isTextual()) throw invalid(); menuIds.add(node.asText()); }
+            for (var node : value.path("steps")) { if (!node.isTextual()) throw invalid(); steps.add(node.asText()); }
+            return new Answer(value.path("reply").asText(), value.path("normalized").asText(), menuIds, steps, value.path("handoff").asBoolean(false),
+                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE);
     }
     @Override public ProactiveSuggestion suggest(BehaviorContext context) {
         var properties=Map.of("shouldOffer",Map.of("type","boolean"),"question",Map.of("type","string"),
             "menuIds",Map.of("type","array","items",Map.of("type","string","enum",context.menus().stream().map(m->m.id()).toList())));
         var schema=Map.of("type","object","properties",properties,"required",List.of("shouldOffer","question","menuIds"),"additionalProperties",false);
-        var value=call(context,schema,behaviorSystem);
+        var value=call(context,schema,behaviorSystem,"low");
         if(!value.isObject() || value.size()!=3 || !value.path("shouldOffer").isBoolean() || !value.path("question").isTextual() || !value.path("menuIds").isArray()) throw invalid();
         for(var node:value.path("menuIds")) if(!node.isTextual()) throw invalid();
         return json.treeToValue(value,ProactiveSuggestion.class);
     }
-    private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt) {
+    @Override public HandoffSummary summarize(HandoffContext context) {
+        var fields=List.of("purpose","stuckPoint","triedActions","unresolved");
+        var properties=new LinkedHashMap<String,Object>();
+        for(var field:fields) properties.put(field,Map.of("type","string"));
+        var schema=Map.of("type","object","properties",properties,"required",fields,"additionalProperties",false);
+        var value=call(context,schema,handoffSystem,"medium");
+        if(!value.isObject() || value.size()!=4) throw invalid();
+        for(var field:fields) if(!value.path(field).isTextual()) throw invalid();
+        return json.treeToValue(value,HandoffSummary.class);
+    }
+    private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt,String effort) {
+        // 서버 전체 호출 상한: 넘으면 요청을 보내지 않는다.
+        if (calls.incrementAndGet() > maxCalls) throw new ApiException(503, "AI_BUDGET_EXCEEDED", "오늘 준비된 AI 사용량을 모두 썼어요. 상담사에게 연결해 주세요.");
         try {
-            var body = Map.of("model", model, "max_tokens", 1200, "system", prompt,
-                "messages", List.of(Map.of("role", "user", "content", json.writeValueAsString(context))),
-                "output_config", Map.of("format", Map.of("type", "json_schema", "schema", schema)));
+            var body = new LinkedHashMap<String,Object>();
+            body.put("model", model); body.put("max_tokens", MAX_TOKENS); body.put("system", prompt);
+            body.put("messages", List.of(Map.of("role", "user", "content", json.writeValueAsString(context))));
+            body.put("output_config", Map.of("effort", effort, "format", Map.of("type", "json_schema", "schema", schema)));
+            if (fallbacks) body.put("fallbacks", "default");
             var builder = HttpRequest.newBuilder(endpoint).timeout(timeout)
                 .header("Content-Type", "application/json").header("x-api-key", key).header("anthropic-version", version);
+            if (fallbacks) builder.header("anthropic-beta", FALLBACK_BETA);
             if (!workspace.isBlank()) builder.header("anthropic-workspace-id", workspace);
             var request = builder.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body), StandardCharsets.UTF_8)).build();
             var response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -67,7 +102,9 @@ public class ClaudeAiClient implements AiClient {
             if (status==404) throw new ApiException(502, "AI_MODEL_ERROR", "Claude 모델 ID와 사용 권한을 확인해 주세요.");
             if (status!=200) throw new ApiException(503, "AI_UNAVAILABLE", "Claude 서비스에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.");
             var root = json.readTree(response.body());
-            if (!"end_turn".equals(root.path("stop_reason").asText())) throw invalid();
+            String stop = root.path("stop_reason").asText();
+            if ("refusal".equals(stop)) throw new ApiException(502, "AI_REFUSED", "이 질문은 안내할 수 없어요.");
+            if (!"end_turn".equals(stop)) throw invalid();
             var text = new StringBuilder();
             for (var block : root.path("content")) if ("text".equals(block.path("type").asText())) text.append(block.path("text").asText());
             if (text.isEmpty() || text.length()>12000) throw invalid();

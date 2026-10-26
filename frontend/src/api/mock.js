@@ -95,6 +95,18 @@ export const mock = {
             notFoundStreak: ++notFoundStreak,
           };
       if (result.type === 'ANSWER') notFoundStreak = 0;
+    } else if (!/앱|은행|계좌|통장|이체|송금|출금|입금|한도|잔액|내역|인증|비밀번호|로그인|증명|서류|환전|환율|외화|카드|대출|상담|돈|오류|안 ?돼/.test(text)) {
+      // 백엔드와 같은 규칙: 금융앱 이용 불편과 무관한 질문은 고정 안내로 거절한다.
+      result = {
+        type: 'OUT_OF_SCOPE',
+        normalized: '',
+        reply: 'WON테이크는 이 앱을 쓰다 막힌 점만 도와드려요. 이체, 계좌 조회, 인증, 증명서, 환전 같은 메뉴를 찾거나 쓰다가 어려운 점을 말씀해 주세요.',
+        intentId: '',
+        menuId: '',
+        steps: [],
+        notFoundStreak,
+        handoffSuggested: false,
+      };
     } else if (/상담|상담원/.test(text)) {
       result = {
         type: 'SUGGEST_HANDOFF',

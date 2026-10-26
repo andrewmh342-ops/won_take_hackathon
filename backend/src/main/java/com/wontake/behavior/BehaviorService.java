@@ -45,7 +45,7 @@ public class BehaviorService {
         // 세션과 행동 상태의 잠금을 동시에 잡지 않는다. AI 요청 중에도 이벤트 기록은 계속 가능하다.
         var events=session.events();
         var recent=events.subList(Math.max(0,events.size()-20),events.size());
-        var history=session.messages().stream().map(m->new AiClient.Turn(m.role(),m.message())).toList();
+        var history=com.wontake.chat.ChatService.history(session.messages()); // 범위 밖 문답은 AI 입력에서 뺀다
         states.entrySet().removeIf(e->System.currentTimeMillis()-e.getValue().session.touched>8*3600_000L);
         var state=states.compute(sessionId,(key,old)->old==null || old.session!=session?new State(session):old);
         long now=clock.millis();
@@ -104,6 +104,12 @@ public class BehaviorService {
             if(!matches(a,contextId) || a.bubble==null) return null;
             return new AiClient.HelpContext(a.id,a.bubble.question(),a.input.visits(),a.input.recentEvents());
         }
+    }
+    /** 상담 요약용: 아직 유효한 마지막 도움 제안의 맥락. 없으면 null. */
+    public AiClient.HelpContext latest(String userId,String sessionId) {
+        var state=state(userId,sessionId);
+        if(state==null) return null;
+        synchronized(state) { return state.pending==null?null:context(userId,sessionId,state.pending.id); }
     }
     public void reset(String userId) {
         states.values().stream().filter(s->s.session.userId.equals(userId)).forEach(s->{

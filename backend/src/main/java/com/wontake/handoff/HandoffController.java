@@ -8,30 +8,22 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** 기존 시연 화면 호환. 실제 상담 시스템 전송이나 AI 상담 요약은 수행하지 않는다. */
+/** 상담 접수(메모리 시연). 요약 초안은 HandoffService가 만들고, 실제 상담 시스템으로는 전송하지 않는다. */
 @RestController
 @RequestMapping("/api/handoff")
 public class HandoffController {
     public record Input(String userId, String sessionId, Map<String,Object> summary) {}
     private final DemoStore store;
+    private final HandoffService service;
     private final Map<String, Map<String,Object>> drafts = new ConcurrentHashMap<>();
     private final Map<String, Map<String,Object>> tickets = new LinkedHashMap<>();
     private final Map<String,String> receipts = new HashMap<>();
-    public HandoffController(DemoStore store) { this.store=store; }
+    public HandoffController(DemoStore store, HandoffService service) { this.store=store; this.service=service; }
     @PostMapping("/summary") public Object summary(@RequestBody Input body) {
-        var session=store.session(body.userId(),body.sessionId());
-        synchronized(session) {
-            if(drafts.size()>1000) throw new ApiException(503,"DEMO_CAPACITY","시연 서버를 재시작해 주세요.");
-            var draft=new LinkedHashMap<String,Object>();
-            draft.put("purpose",session.messages().stream().filter(m->m.role().equals("USER")).reduce((a,b)->b).map(m->"고객 마지막 질문: "+m.message()).orElse("확인 안 됨"));
-            for(var field:List.of("stuckPoint","triedActions","unresolved")) draft.put(field,"확인 안 됨");
-            boolean consent=Boolean.TRUE.equals(store.consent(body.userId()));
-            draft.put("clickConsent",consent); draft.put("clickTimeline",consent?session.events():List.of());
-            draft.put("conversations",session.messages()); draft.put("source","RECORDED");
-            draft.put("draftId",UUID.randomUUID().toString());
-            drafts.put(body.sessionId(),draft);
-            return draft;
-        }
+        if(drafts.size()>1000) throw new ApiException(503,"DEMO_CAPACITY","시연 서버를 재시작해 주세요.");
+        var draft=service.draft(body.userId(),body.sessionId());
+        drafts.put(body.sessionId(),draft);
+        return draft;
     }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public synchronized Object submit(@RequestBody Input body) {

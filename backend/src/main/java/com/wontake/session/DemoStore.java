@@ -17,6 +17,7 @@ public class DemoStore {
         public final List<Event> eventLog = new ArrayList<>();
         public final List<Message> conversation = new ArrayList<>();
         public volatile long touched = System.currentTimeMillis();
+        public int notFoundStreak;
         public Session(String userId) { this.userId = userId; }
         public synchronized List<Event> events() { return List.copyOf(eventLog); }
         public synchronized List<Message> messages() { return List.copyOf(conversation); }
