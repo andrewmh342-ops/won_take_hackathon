@@ -153,3 +153,11 @@
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md·사람이 쓴 테스트 안 고침. API 클라이언트는 기존 SPEC 계약 함수를 재사용
 - 확인하지 못한 것: 실제 백엔드 API·CLOVA 연결, 실제 음성 인식 결과, 마이크 30초 자동 종료를 30초간 수동 대기해 확인하는 것
 - 다음에 할 일: 백엔드 연동 후 API 계약과 시나리오 A·B 통합 확인
+
+### 2026-10-26 · [codex]
+- 한 일: 사용자 요청으로 Jaehong(b124d75) 기반 codex/web-speech 브랜치에서 네이버 CSR 대신 PC Chrome Web Speech API로 음성→글자 변환. ko-KR 확정 결과를 기존 대화 API의 VOICE 입력으로 전달하고 WAV 업로드는 사용하지 않음. 30초 중지, 시작 10초·종료 3초 제한, 권한·네트워크 오류 안내, 화면 이탈 취소 구현
+- 바뀐 파일과 이유: SPEC.md (사용자가 승인한 음성 인식 방식·계약·역할·검증 변경), frontend/src/audio/speech.js (새 음성 인식 모듈), speech.test.js (브라우저 이벤트·시간 경계 테스트), frontend/src/screens/ChatScreen.jsx (음성 글자 연결 및 서비스 처리 안내), README.md (PC Chrome 실행·확인 방법), PROGRESS.md (기록)
+- 실행한 테스트와 결과: 새 테스트를 먼저 실행해 모듈 미구현 실패 확인. `cd frontend && node --test src/audio/*.test.js` 19개 통과·0개 실패(새 16개, 기존 WAV 3개). `npm run build` 성공. Chromium+Playwright 화면 확인 5개 통과·0개 실패, 런타임 오류 0건(음성 인식 이벤트 대역: 글자 표시·VOICE 1회 전달·WAV 미호출, 미지원 후 텍스트 입력, 권한 거부 후 텍스트 유지, 이탈 취소·지연 결과 미전송, 가짜 시계 30초 자동 중지). 화면 검증 도구는 /tmp/wontake-browser/web-speech.cjs에 있으며 프로젝트 의존성 추가 없음
+- 고치면 안 되는 파일: SPEC.md는 이번 사용자 요청에 따른 변경 승인 범위에서 수정. AGENTS.md·CLAUDE.md·기존 테스트 안 고침. 기존 WAV 녹음 모듈과 테스트 보존
+- 확인하지 못한 것: 사용자 실제 마이크의 Chrome 음성 인식 서비스 응답·발화 및 사투리 정확도, 실제 AI·백엔드 연결. 가짜 응답 모드의 AI 답변·표준어 정리·상담 요약은 여전히 예시이며 실제 인식 검증과 구분함
+- 다음에 할 일: PC Chrome에서 마이크 허용 후 실제 발화를 확인하고 SPEC 3.5 시연 체크리스트 완료. 확인 전 작업 9 완료 체크는 보류

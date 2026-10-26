@@ -1,6 +1,7 @@
 # SPEC.md — WON테이크
 
 > 각 장은 사람이 "승인"한 뒤에만 확정합니다. 아래 1~4장은 **2026-10-26 강사 피드백을 반영해 다시 쓰고 승인한 버전**입니다.
+> 음성 인식 방식 변경 승인: 2026-10-26 사용자 요청으로 네이버 CSR 대신 PC Chrome Web Speech API를 사용한다.
 > 이전에 승인된 1장(기능 4개 구조)은 이 초안으로 대체됩니다. 이전 내용은 git 기록(커밋 2889715)에 남아 있습니다.
 
 ## 1. 요구사항 (승인: 2026-10-26)
@@ -41,18 +42,26 @@
 | 출금 메뉴와 전체 메뉴를 오감 | "국내송금을 찾고 계신가요?" |
 
 ### R2. 음성·사투리 질문에 답하기
-- 고객이 마이크로 말하면, 시스템은 CLOVA Speech Recognition으로 말을 글자로 바꾸고, AI로 사투리와 구어를 표준어 문장으로 정리한 뒤 의도를 파악한다. 글자로 써도 같은 흐름으로 처리한다.
+- 고객이 마이크로 말하면, 시스템은 PC Chrome의 Web Speech API(`SpeechRecognition` 또는 `webkitSpeechRecognition`, `ko-KR`)로 말을 글자로 바꾸고, AI로 사투리와 구어를 표준어 문장으로 정리한 뒤 의도를 파악한다. 글자로 써도 같은 흐름으로 처리한다.
 - 시스템은 질문 목록 안의 질문으로만 답한다. 답에는 안내 문구와, 있으면 관련 메뉴와 단계를 담는다.
 - 음성으로 물으면 화면에 "들은 말"(인식 원문)과 "이렇게 이해했어요"(표준어 정리)를 함께 보여 준다.
-- 녹음은 최대 30초이고 30초가 되면 자동으로 끝난다.
+- 음성 인식이 시작되면, 시스템은 최대 30초 동안 듣고 30초가 되면 자동으로 입력을 중지한다. 브라우저가 먼저 종료하면 그 시점에 확정된 글자로 처리한다.
+- 마이크 권한 대기가 10초에 도달하면, 시스템은 인식을 취소하고 글자 입력을 안내한다. 중지 후 3초 동안 종료 응답이 없으면, 시스템은 인식을 취소하고 이미 확정된 글자만 사용한다.
+- 고객이 화면을 떠나면, 시스템은 진행 중인 음성 인식을 취소하고 늦게 도착한 결과를 보내지 않는다.
+- 브라우저가 API를 지원하지 않거나 보안 연결이 아니면, 시스템은 Chrome과 HTTPS 또는 localhost 사용을 안내하고 글자 입력을 유지한다.
 - 인식 결과가 비어 있거나 음성 인식이 실패하면, 시스템은 글자로 입력해 달라고 안내한다.
 - 목록 안에서 의도를 찾지 못하면 "찾지 못함"으로 처리하고 다시 묻는다.
-- 시스템은 거래를 실행하지 않는다. 음성 파일은 저장하지 않고, 인식 후 바로 버린다.
+- 시스템은 거래를 실행하지 않는다. 앱은 WAV 파일을 생성·저장하거나 자체 백엔드에 음성을 전송하지 않는다. Chrome의 음성 인식 서비스에서 음성이 처리될 수 있음을 마이크 사용 전에 안내한다. 확정된 글자만 대화 API로 보낸다.
 
 **규칙**
 | 상황 | 결과 |
 |---|---|
-| 녹음 30초 도달 | 자동으로 녹음 종료 후 인식 |
+| 음성 인식 시작 후 29,999ms / 30,000ms | 계속 듣기 / 자동 중지 |
+| 시작 응답 없이 10,000ms 도달 | 취소 및 글자 입력 안내 |
+| 중지 후 종료 응답 없이 3,000ms 도달 | 취소하고 확정된 글자만 사용 |
+| 중간 결과·동일 확정 결과 반복 | 중간 결과 제외, 확정 결과는 중복 없이 한 번 전송 |
+| 인식 중 화면 이탈 | 인식 취소, 늦은 결과 미전송 |
+| 미지원 브라우저·권한 거부·네트워크 오류 | 원인 안내, 글자 입력 유지 |
 | 인식 결과가 빈 문자열 | "글자로 입력해 주세요" 안내 |
 | 음성 인식 API 오류 | "글자로 입력해 주세요" 안내 |
 | AI가 목록에 없는 질문 id를 답함 | 찾지 못함 1회 |
@@ -65,7 +74,7 @@
 | "이체 한도가 우째 되능교" | 이체 한도가 어떻게 되나요 | 이체한도 확인 방법 안내 |
 | "내 통장에 돈 얼매 있노" | 내 통장 잔액을 보고 싶어요 | 전체계좌조회 안내 |
 
-※ 사투리 인식 품질은 음성 인식 단계(CLOVA)의 결과에 좌우된다. CLOVA 문서에는 방언 지원 언급이 없으므로, 우리 주장은 "글자로 바뀐 사투리 문장을 AI가 표준어로 정리한다"까지로 한정한다.
+※ 사투리 인식 품질은 Chrome 음성 인식 결과에 좌우된다. 방언 정확도를 보장하지 않으므로, 우리 주장은 "글자로 바뀐 사투리 문장을 AI가 표준어로 정리한다"까지로 한정한다.
 
 ### R3. 클릭 기록과 대화를 정리해 상담사에게 전달
 - 고객이 상담을 요청하거나 "찾지 못함"이 연속 2번이면, 시스템은 상담 연결을 제안한다. 중간에 답이 한 번이라도 성공하면 연속 횟수는 0으로 되돌린다.
@@ -109,7 +118,7 @@
 |---|---|---|
 | 백엔드 | Java 21, Spring Boot 4.1.2, Gradle Wrapper | 설치된 JDK 21.0.12(Temurin LTS), start.spring.io 정식 기본 버전 |
 | 프론트 | React 19.3.1 + Vite 8.3.5, JavaScript | npm 레지스트리 최신, 팀 결정 |
-| 음성 인식 | NAVER Cloud CLOVA Speech Recognition(CSR) | 공식 문서 확인. Clova Note는 공개 API가 없음 |
+| 음성 인식 | PC Chrome Web Speech API (`ko-KR`) | 사용자 승인: CSR 과금 없이 해커톤 시연. 별도 API 키 불필요, 인터넷 및 브라우저 서비스 가용성에 의존 |
 | AI(LLM) | **미정.** `AiClient` 인터페이스 + `FakeAiClient`로 개발 | 제공사 결정 기한: Day2 오전 |
 | 저장 | JSON 파일(읽기 전용 데이터) + 서버 메모리(로그·동의·대화·접수) | 시연용. **서버 재시작 시 상태 초기화** |
 | 테스트 | 백엔드 JUnit 5 (Spring 기본 포함) | 새 라이브러리 없음 |
@@ -118,15 +127,17 @@
 - **포트:** 백엔드 8080, 프론트 5173. Vite 프록시로 `/api`를 8080에 넘긴다.
 - **판단 로직은 백엔드에 둔다.** 재진입 감지, 질문 목록 검증, 찾지 못함 연속 횟수, "확인 안 됨" 처리, 동의 확인이 모두 JUnit으로 테스트된다. AI 호출은 테스트에서 가짜로 바꿔 끼운다.
 - **금액:** 거래를 실행하지 않아 금액 계산이 없다. 화면의 가상 잔액·한도는 원 단위 정수(`long`)다.
-- **비밀값:** `CLOVA_CLIENT_ID`, `CLOVA_CLIENT_SECRET`, AI 키는 환경 변수로만 읽는다. 키가 없으면 가짜 구현(`FakeSttClient`, `FakeAiClient`)으로 동작한다.
+- **비밀값:** 음성 인식은 별도 키를 사용하지 않는다. AI 키는 환경 변수로만 읽으며, 키가 없으면 `FakeAiClient`로 동작한다.
 
-### 2.2 CLOVA Speech Recognition 연동 (공식 문서 기준)
-- `POST https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor`
-- 헤더: `x-ncp-apigw-api-key-id`, `x-ncp-apigw-api-key`, `Content-Type: application/octet-stream`
-- 본문: 음성 데이터(wav·mp3·flac), 최대 3MB, 최대 60초, 400ms 이하 거부
-- 응답: `{ "text": "..." }`
-- **브라우저 녹음 형식:** 브라우저 기본 녹음(webm/ogg)은 CSR이 받지 않는다. 프론트에서 Web Audio API로 16kHz 모노 WAV를 직접 만든다(새 라이브러리 없음). 30초 × 16kHz × 16bit ≈ 0.96MB로 3MB 이내.
-- **결제:** 네이버 클라우드 결제가 필요하다. 팀 API 예산($20)으로 운영매니저에게 요청한다. 승인 전까지는 `FakeSttClient`로 개발한다.
+### 2.2 Chrome Web Speech API 연동
+- PC Chrome의 HTTPS 또는 localhost에서 사용한다. `SpeechRecognition` 또는 `webkitSpeechRecognition`을 기능 감지한다.
+- `lang=ko-KR`, `continuous=true`, `interimResults=false`로 인식하고 확정 결과만 순서대로 합친다.
+- 인식 시작 후 30초에 `stop()`, 수동 중지 시에도 `stop()`으로 마지막 결과를 기다린다. 시작 대기 10초, 종료 대기 3초에 도달하면 `abort()`로 정리한다.
+- 화면 이탈 시 `abort()`하고 결과를 버린다. 권한 거부·입력 장치·네트워크·빈 결과 오류에는 글자 입력을 안내한다.
+- 인식한 글자를 `POST /api/chat`의 `message`, `inputType: "VOICE"`로 전송한다. `/api/voice`와 네이버 인증·WAV 전송은 사용하지 않는다.
+- 마이크 사용 전에 Chrome 음성 인식 서비스 처리 가능성을 안내한다. 브라우저 외부 서비스로 음성이 전송될 수 있으며 오프라인 동작·무제한 제공·사투리 정확도를 보장하지 않는다.
+- 가짜 응답 모드에서도 음성→글자는 Web Speech API를 사용하고, AI 답변·표준어 정리·상담 요약만 가짜 구현을 사용한다.
+- 별도 라이브러리나 네이버 음성 API 요금 없이 구현한다. Chrome의 지원·네트워크·서비스 정책에 의존하므로 텍스트 입력을 항상 제공한다.
 
 ### 2.3 데이터 (`backend/src/main/resources/data/`)
 | 파일 | 내용 | 만드는 사람 |
@@ -151,8 +162,7 @@
 - `POST /api/bubble/close` `{ userId, sessionId, screenId, action: "CLOSE" | "NEVER" }` → 204
 
 **R2. 음성과 대화**
-- `POST /api/voice?userId=&sessionId=` 본문: WAV (`application/octet-stream`) → `{ "recognizedText": "..." }`
-  - 인식 실패나 빈 결과면 `{ "recognizedText": "" }`
+- 음성 인식은 브라우저에서 수행한다. `/api/voice`는 현재 워크플로에서 호출하지 않는다. 인식 실패·빈 결과는 프론트에서 글자 입력을 안내하고 `/api/chat`을 호출하지 않는다.
 - `POST /api/chat` `{ userId, sessionId, message, inputType: "TEXT" | "VOICE" | "SUGGESTION", intentId? }`
   → `{ "type": "ANSWER" | "NOT_FOUND" | "ASK_TEXT_INPUT" | "SUGGEST_HANDOFF", "normalized": "...", "reply": "...", "intentId": "...", "menuId": "...", "steps": [...], "notFoundStreak": 0 }`
   - `normalized`는 `VOICE`일 때 표준어 정리 문장
@@ -182,7 +192,7 @@ AI는 항상 **목록 안에서 고르거나 주어진 기록을 정리**만 한
 | `EventLog` | 세션별 클릭 기록(메모리), 동의 확인 후 저장 | R1, R3 |
 | `ReentryDetector` | 화면별 60초 이내 3회 진입 판단, CLOSE·NEVER 처리 | R1 |
 | `BubbleService` | 의도 추론 호출, 목록 검증, 최대 3개 | R1 |
-| `SttClient` / `ClovaSttClient` / `FakeSttClient` | 음성 → 글자 | R2 |
+| `audio/speech.js` | 브라우저 음성 → 글자, 중지·취소·시간 제한 | R2 |
 | `ChatService`, `ConversationStore` | 사투리 정리·의도 파악·답, 찾지 못함 연속 횟수, 상담 제안 | R2, R3 |
 | `AiClient` / `FakeAiClient` | AI 호출 3종 | R1~R3 |
 | `HandoffService`, `TicketStore` | 요약 생성, "확인 안 됨" 처리, 접수 저장 | R3 |
@@ -193,7 +203,6 @@ backend/src/main/java/com/wontake/
   catalog/   MenuCatalog, IntentCatalog, UserRepository
   consent/   ConsentController, ConsentService            (R4)
   behavior/  EventController, EventLog, ReentryDetector, BubbleService (R1)
-  voice/     VoiceController, SttClient, ClovaSttClient, FakeSttClient (R2)
   chat/      ChatController, ChatService, ConversationStore (R2, R3)
   ai/        AiClient, FakeAiClient, 프롬프트                (공용)
   handoff/   HandoffController, HandoffService, TicketStore (R3)
@@ -202,7 +211,7 @@ frontend/src/
   screens/     HomeScreen, MenuScreen, TransferScreen, AccountScreen, ChatScreen, ConsentScreen, AgentScreen
   components/  Bubble, Popup, MenuList, MicButton
   tracking/    화면 진입·클릭을 /api/events로 보내는 코드
-  audio/       16kHz WAV 녹음
+  audio/       Chrome 음성 인식 (speech.js). 기존 WAV 모듈은 보존하되 사용하지 않음
   api/         API 호출 함수
 ```
 
@@ -214,7 +223,7 @@ frontend/src/
 ---
 
 ## 3. 테스트 목록 (승인: 2026-10-26)
-규칙 예시표 한 행이 테스트 하나다. AI 동작 예시는 자동 테스트하지 않고 시연 체크리스트(3.5)로 확인한다. AI와 음성 인식은 테스트에서 가짜로 바꿔 끼운다.
+규칙 예시표 한 행이 테스트 하나다. AI 동작 예시는 자동 테스트하지 않고 시연 체크리스트(3.5)로 확인한다. AI와 브라우저 음성 인식 이벤트는 테스트에서 가짜로 바꿔 끼운다. 실제 Chrome 서비스의 인식 정확도는 수동 시연으로 별도 확인한다.
 
 ### 3.1 R1 행동 의도 역제안 (`ReentryDetectorTest`, `BubbleServiceTest`)
 | 테스트 이름 | Given / When / Then |
@@ -230,16 +239,19 @@ frontend/src/
 | 닫기_후_다시_3번_들어오면_다시_분석한다 | CLOSE 후 / 60초 안에 3번 진입 / 분석 |
 | 다시_띄우지_않기_후에는_말풍선이_없다 | NEVER 후 / 같은 화면 3번 진입 / bubble null |
 
-### 3.2 R2 음성·사투리 질문 (`ChatServiceTest`, `VoiceControllerTest`)
+### 3.2 R2 음성·사투리 질문 (`ChatServiceTest`, `audio/speech.test.js`)
 | 테스트 이름 | Given / When / Then |
 |---|---|
-| 인식_결과가_비면_글자_입력을_안내한다 | 가짜 STT가 "" 반환 / 음성 질문 / ASK_TEXT_INPUT |
-| 음성_인식_오류면_글자_입력을_안내한다 | 가짜 STT가 예외 / 음성 질문 / ASK_TEXT_INPUT |
+| 인식_결과가_비면_글자_입력을_안내한다 | 브라우저 확정 결과 없음 / 음성 종료 / 글자 입력 안내, 대화 API 미호출 |
+| 음성_인식_오류면_글자_입력을_안내한다 | 브라우저 권한·네트워크 오류 / 음성 질문 / 글자 입력 안내, 대화 API 미호출 |
 | AI가_목록에_없는_id를_주면_찾지_못함이다 | 가짜 AI가 없는 id / 대화 / NOT_FOUND, 연속 1 |
 | AI_호출이_실패하면_찾지_못함이다 | 가짜 AI가 예외 / 대화 / NOT_FOUND |
 | 이체해_달라고_해도_이체를_실행하지_않는다 | "5만원 이체해 줘" / 대화 / ANSWER, 이체 메뉴 안내만, 거래 호출 없음 |
 | 말풍선_질문을_고르면_그_질문으로_바로_답한다 | SUGGESTION + intentId / 대화 / AI 호출 없이 해당 answer |
-| 녹음_30초에서_자동으로_끝난다 | (프론트 수동 확인, 3.5 체크리스트) |
+| 인식_30초에서_자동으로_끝난다 | 가짜 시계 / 29,999ms와 30,000ms / 유지 후 중지 |
+| 화면_이탈_후에는_전송하지_않는다 | 인식 중 화면 이탈 / 지연 결과 / 대화 미전송 |
+| 확정_결과만_한번_보낸다 | 중간·반복 결과 / 인식 종료 / 확정 문장만 한 번 |
+| 미지원이면_글자_입력을_유지한다 | Web Speech API 없음 / 마이크 클릭 / Chrome 안내, 텍스트 입력 가능 |
 
 ### 3.3 R3 상담 인계 (`ChatServiceTest`, `HandoffServiceTest`)
 | 테스트 이름 | Given / When / Then |
@@ -264,7 +276,8 @@ frontend/src/
 
 ### 3.5 시연 체크리스트 (자동 테스트 아님)
 - [ ] AI 동작 예시(R1 3행, R2 2행)가 실제 AI로 기대한 결과를 낸다
-- [ ] 녹음이 30초에서 자동 종료된다
+- [ ] 실제 PC Chrome 마이크로 한국어 발화가 글자로 변환되고 30초에서 자동 중지된다
+- [ ] Chrome 권한 거부·네트워크 실패 시 글자 입력으로 계속할 수 있다
 - [ ] 같은 버튼이라도 클릭 순서가 다르면 말풍선 첫 질문이 달라진다 (AI 명분 시연)
 - [ ] 시나리오 A(이체한도), B(계좌 찾기)를 처음부터 끝까지 끊김 없이 진행한다
 
@@ -276,8 +289,8 @@ frontend/src/
 | 역할 | 맡는 일 | 주로 만지는 폴더 | 이런 사람에게 |
 |---|---|---|---|
 | **1. 프론트 · 앱 화면** | 프론트 골조, 홈·전체 메뉴·계좌이체·계좌조회 화면, 클릭 기록 전송, 말풍선 UI, 동의 화면 | `layout/`, `screens/`(앱 화면), `components/`, `tracking/` | React 화면을 빨리 만드는 사람 |
-| **2. 프론트 · 대화와 상담** | AI 대화 화면, 마이크 녹음(WAV), 요약 확인 팝업, 상담사 화면(PC) | `screens/ChatScreen`, `screens/AgentScreen`, `audio/`, `api/` | 화면 + 브라우저 기능(녹음)에 관심 있는 사람 |
-| **3. 백엔드 기반 · 데이터** | 백엔드 골조, 가상 데이터(`menu`, `intents`, `users`, 시나리오 로그), 동의·클릭 기록·재진입 감지·상담 접수 API, CLOVA 음성 인식 연동, README | `catalog/`, `consent/`, `behavior/`, `voice/`, `handoff/`(접수), `data/` | Spring에 익숙하고 꼼꼼한 사람 |
+| **2. 프론트 · 대화와 상담** | AI 대화 화면, Chrome 음성 인식, 요약 확인 팝업, 상담사 화면(PC) | `screens/ChatScreen`, `screens/AgentScreen`, `audio/`, `api/` | 화면 + 브라우저 기능(녹음)에 관심 있는 사람 |
+| **3. 백엔드 기반 · 데이터** | 백엔드 골조, 가상 데이터(`menu`, `intents`, `users`, 시나리오 로그), 동의·클릭 기록·재진입 감지·상담 접수 API, README | `catalog/`, `consent/`, `behavior/`, `handoff/`(접수), `data/` | Spring에 익숙하고 꼼꼼한 사람 |
 | **4. AI 백엔드** | AI 제공사 연동, 프롬프트 3종(의도 추론, 사투리 정리·답변, 상담 요약), AI 결과 검증, 대화 흐름(찾지 못함·상담 제안) | `ai/`, `chat/`, `behavior/BubbleService`, `handoff/HandoffService` | AI API와 프롬프트를 다뤄 본 사람 |
 
 - 골조는 **역할 1(프론트)과 역할 3(백엔드)이 동시에** 만든다. 역할 2·4는 그동안 화면 시안, 프롬프트 초안, `intents.json` 질문 문구를 준비한다.
@@ -286,7 +299,7 @@ frontend/src/
 
 ### 4.2 작업 (순서대로, 작업마다 먼저 쓸 테스트)
 **골조 (Day1 저녁)**
-- [ ] 작업 1. 백엔드 골조: 서버 실행, API 계약대로 가짜 응답, JSON 읽기, `AiClient`·`SttClient` 가짜 구현 (역할 3) — 먼저: 컨트롤러별 응답 모양 테스트
+- [ ] 작업 1. 백엔드 골조: 서버 실행, API 계약대로 가짜 응답, JSON 읽기, `AiClient` 가짜 구현 (역할 3) — 먼저: 컨트롤러별 응답 모양 테스트
 - [x] 작업 2. 프론트 골조: 휴대폰 틀, 화면 이동, 메뉴 목록, 공용 팝업·말풍선 틀, API 호출 함수 (역할 1) — 테스트 없음(수동 확인)
 - [ ] 작업 3. 가상 데이터: `menu.json`, `intents.json`(질문 10개 내외), `users.json`, 시나리오 A·B 클릭 기록 (역할 3) — 먼저: 처음이면_동의_여부가_비어_있다
 
@@ -296,12 +309,12 @@ frontend/src/
 - [ ] 작업 6. 말풍선 질문 고르기·검증 (R1) (역할 4) — 먼저: 목록에_없는_질문은_버린다
 - [ ] 작업 7. 말풍선 화면과 질문 선택 → 대화 시작 (R1) (역할 1) — 먼저: 말풍선_질문을_고르면_그_질문으로_바로_답한다
 - [ ] 작업 8. 대화 흐름: 의도 파악·찾지 못함·상담 제안 (R2, R3) (역할 4) — 먼저: AI가_목록에_없는_id를_주면_찾지_못함이다
-- [ ] 작업 9. 음성 인식: CLOVA 연동 (역할 3), WAV 녹음·마이크 화면 (역할 2) — 먼저: 인식_결과가_비면_글자_입력을_안내한다
+- [ ] 작업 9. 음성 인식: Chrome Web Speech API·마이크 화면 (역할 2), 실제 Chrome 발화 확인 필요 — 먼저: 인식_결과가_비면_글자_입력을_안내한다
 - [ ] 작업 10. 상담 요약·접수 (R3) (역할 4 요약, 역할 3 접수) — 먼저: 빈_항목은_확인_안_됨으로_채운다
 - [ ] 작업 11. 요약 확인 팝업·상담사 화면 (R3) (역할 2) — 먼저: 전달하면_접수된다
 
 **통합과 마무리 (Day2 오후 ~ Day3 오전)**
 - [ ] 작업 12. 1차 통합(Day2 13:00): 시나리오 A·B 관통 (전원)
-- [ ] 작업 13. 실제 AI·CLOVA로 교체 후 시연 체크리스트(3.5) 확인 (역할 4, 역할 3)
+- [ ] 작업 13. 실제 AI·Chrome 음성 인식으로 시연 체크리스트(3.5) 확인 (역할 4, 역할 3)
 - [ ] 작업 14. 화면 디자인 통일 (역할 1, 2) — Day2 18:00 기능 동결
 - [ ] 작업 15. README 실행 방법, 발표자료, 1분 영상, 백업 녹화 (전원) — Day3 12:30 제출

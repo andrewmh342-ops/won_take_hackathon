@@ -1,7 +1,7 @@
 // 담당: 역할 2 — AI 대화, 음성 질문, 상담 인계 확인
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getHandoffSummary, postChat, postHandoff, postVoice } from '../api/client.js';
-import { cancelRecording, startRecording, stopRecording } from '../audio/recorder.js';
+import { getHandoffSummary, postChat, postHandoff } from '../api/client.js';
+import { cancelRecognition, startRecognition, stopRecognition } from '../audio/speech.js';
 import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
@@ -33,6 +33,8 @@ export default function ChatScreen() {
   const [receipt, setReceipt] = useState(null);
   const threadEnd = useRef(null);
   const initialQuestionSent = useRef(false);
+  const mounted = useRef(true);
+  const voicePending = useRef(false);
 
   const send = useCallback(
     async (message, inputType = 'TEXT', intentId, heardText) => {
@@ -78,12 +80,13 @@ export default function ChatScreen() {
     threadEnd.current?.scrollIntoView({ block: 'nearest' });
   }, [messages]);
 
-  useEffect(
-    () => () => {
-      void cancelRecording();
-    },
-    [],
-  );
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      cancelRecognition();
+    };
+  }, []);
 
   async function submit(event) {
     event.preventDefault();
@@ -91,24 +94,26 @@ export default function ChatScreen() {
   }
 
   async function recordQuestion() {
+    if (voicePending.current || busy) return;
+    voicePending.current = true;
     setError('');
     setMicState('starting');
     try {
-      const wav = await startRecording(() => setMicState('recording'));
-      if (!wav) return;
-
-      setMicState('transcribing');
-      const { recognizedText } = await postVoice(wav);
-      const heardText = typeof recognizedText === 'string' ? recognizedText.trim() : '';
+      const recognizedText = await startRecognition(() => {
+        if (mounted.current) setMicState('recording');
+      });
+      if (!mounted.current || recognizedText === null) return;
+      const heardText = recognizedText.trim();
       if (!heardText) {
         setError('음성을 확인하지 못했어요. 글자로 입력해 주세요.');
         return;
       }
       await send(heardText, 'VOICE', undefined, heardText);
     } catch (recordingError) {
-      setError(`음성을 처리하지 못했어요. 글자로 입력해 주세요. (${recordingError.message})`);
+      if (mounted.current) setError(recordingError.message);
     } finally {
-      setMicState('idle');
+      voicePending.current = false;
+      if (mounted.current) setMicState('idle');
     }
   }
 
@@ -262,12 +267,16 @@ export default function ChatScreen() {
       {micState !== 'idle' && (
         <p className="recording-status" role="status">
           {micState === 'starting' && '마이크 연결을 기다리고 있어요.'}
-          {micState === 'recording' && '녹음 중이에요. 최대 30초까지 녹음합니다.'}
-          {micState === 'stopping' && '녹음을 마치고 있어요.'}
+          {micState === 'recording' && '듣고 있어요. 최대 30초까지 음성을 인식합니다.'}
+          {micState === 'stopping' && '음성 인식을 마치고 있어요.'}
           {micState === 'transcribing' && '들은 말을 확인하고 있어요.'}
         </p>
       )}
 
+      <p className="info-note">
+        마이크를 누르면 Chrome 음성 인식 서비스에서 음성이 처리될 수 있어요.
+        인터넷 연결이 필요하며, 인식이 안 되면 글자로 입력해 주세요.
+      </p>
       <form className="chat-composer" onSubmit={submit}>
         <label className="sr-only" htmlFor="chat-draft">질문 입력</label>
         <input
@@ -286,10 +295,10 @@ export default function ChatScreen() {
             data-track-id="voice-stop"
             onClick={() => {
               setMicState('stopping');
-              void stopRecording();
+              stopRecognition();
             }}
           >
-            녹음 끝
+            말하기 끝
           </button>
         ) : (
           <button
