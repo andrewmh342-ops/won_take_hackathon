@@ -62,7 +62,7 @@ export default function ChatScreen() {
       setMessages((current) => [...current, { role: 'USER', text, inputType, heardText }]);
 
       try {
-        const result = await postChat({ message: text, inputType, intentId });
+        const result = await postChat({ message: text, inputType, intentId, contextId: params.contextId });
         setMessages((current) => [
           ...current,
           {
@@ -85,7 +85,7 @@ export default function ChatScreen() {
         setBusy(false);
       }
     },
-    [busy, historyReady],
+    [busy, historyReady, params.contextId],
   );
 
   useEffect(() => {
@@ -181,6 +181,16 @@ export default function ChatScreen() {
       <p className="eyebrow">WON TAKE ASSISTANT</p>
       <h1>AI 대화</h1>
       <p className="muted">찾는 메뉴나 막힌 상황을 편하게 말씀해 주세요.</p>
+      {params.helpQuestion && (
+        <div className="suggestion-list">
+          <p><strong>먼저 제안한 도움</strong></p>
+          <p>{params.helpQuestion}</p>
+          <p>궁금한 점을 짧게 적거나 마이크로 말씀해 주세요.</p>
+          <button type="button" disabled={inputDisabled} onClick={() => send('방금 제안한 내용으로 안내해 줘')}>
+            제안한 내용으로 안내받기
+          </button>
+        </div>
+      )}
 
       {messages.length === 0 && (suggestions.length > 0 || params.question) && (
         <div className="suggestion-list">

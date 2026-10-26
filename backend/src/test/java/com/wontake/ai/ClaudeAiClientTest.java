@@ -89,4 +89,20 @@ class ClaudeAiClientTest {
         status=404;
         assertEquals("AI_MODEL_ERROR",assertThrows(ApiException.class,()->client().answer(context())).code);
     }
+    @Test void proactiveRequestContainsVisitOrderAndUsesItsOwnPromptAndSchema() {
+        var mapper=new JsonMapper();
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("shouldOffer",true,"question","이체 메뉴를 찾는 데 도움이 필요하세요?","menuIds",List.of("instant-transfer")))))));
+        var visits=List.of(new AiClient.Visit("instant-transfer","이체/출금","2026-10-27T00:00:00Z","2026-10-27T00:00:01Z",1000),
+            new AiClient.Visit("overseas-remittance","이체/출금","2026-10-27T00:00:02Z","2026-10-27T00:00:03Z",1000));
+        var result=client().suggest(new AiClient.BehaviorContext(visits,context().recentEvents(),context().history(),context().menus()));
+        assertTrue(result.shouldOffer());
+        var request=mapper.readTree(body.get());
+        assertTrue(request.path("system").asText().contains("먼저 도움"));
+        assertTrue(request.at("/output_config/format/schema/properties/shouldOffer").isObject());
+        var input=mapper.readTree(request.at("/messages/0/content").asText());
+        assertEquals("instant-transfer",input.at("/visits/0/menuId").asText());
+        assertEquals("overseas-remittance",input.at("/visits/1/menuId").asText());
+        assertEquals(1000,input.at("/visits/0/dwellMillis").asLong());
+    }
 }

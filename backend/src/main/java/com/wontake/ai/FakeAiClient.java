@@ -4,10 +4,16 @@ import java.util.*;
 
 /** 테스트·키 없는 연결 확인용 규칙. 실제 AI 추론으로 시연하지 않는다. */
 public class FakeAiClient implements AiClient {
+    @Override public ProactiveSuggestion suggest(BehaviorContext context) {
+        String category=context.visits().getLast().category();
+        String question=category.equals("이체/출금") ? "이체나 송금 메뉴를 찾는 데 도움이 필요하세요?" : category+" 메뉴를 찾는 데 도움이 필요하세요?";
+        return new ProactiveSuggestion(true,question,context.visits().stream().map(Visit::menuId).distinct().limit(2).toList());
+    }
     @Override public Answer answer(Context c) {
         String q = c.question();
         List<String> ids = new ArrayList<>();
-        if (q.contains("내역")) {
+        if(q.contains("방금 제안") && c.helpContext()!=null) ids=c.helpContext().visits().stream().map(Visit::menuId).distinct().limit(2).toList();
+        else if (q.contains("내역")) {
             String domain = "";
             for (var t : c.history()) {
                 if (t.role().equals("USER")) {
@@ -15,7 +21,10 @@ public class FakeAiClient implements AiClient {
                     else if (t.message().contains("이체")) domain="transfer";
                 }
             }
-            for (var event : c.recentEvents()) {
+            var contextEvents = c.recentEvents();
+            if(c.helpContext()!=null && contextEvents.stream().noneMatch(e->Set.of("exchange","transfer","account").contains(e.screenId())))
+                contextEvents=c.helpContext().recentEvents();
+            for (var event : contextEvents) {
                 if (event.screenId().equals("exchange")) domain="exchange";
                 else if (event.screenId().equals("transfer")) domain="transfer";
                 else if (event.screenId().equals("account")) domain="account";

@@ -867,6 +867,8 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  width: 330px;
+  max-width: calc(100% - 28px);
   gap: 4px;
   animation: help-bubble-in 0.25s ease-out;
 }
@@ -880,18 +882,22 @@ input::placeholder {
   background: var(--primary);
   color: var(--surface);
   text-align: left;
+  width: 100%;
   box-shadow: 0 10px 28px #2463eb40;
 }
 .help-bubble-main:hover {
   background: var(--primary-dark);
 }
 .help-bubble-main .ai-mark {
+  flex-shrink: 0;
   background: var(--surface);
   color: var(--primary);
 }
 .help-bubble-main strong {
   display: block;
   font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .help-bubble-main small {
   display: block;

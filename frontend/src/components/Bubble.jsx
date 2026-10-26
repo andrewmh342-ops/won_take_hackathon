@@ -1,5 +1,5 @@
 // 담당: 공용 — 도움 제안 말풍선(R1). 화면 스크롤과 상관없이 휴대폰 틀 오른쪽 아래에 뜬다.
-// 말풍선을 누르면 AI 대화로 이동하고, 추천 질문(최대 3개)을 params.suggestions로 넘긴다.
+// 말풍선을 누르면 AI 대화로 이동하고, 서버의 직전 행동 스냅샷 ID와 AI 역질문을 넘긴다.
 import React, { useState } from 'react';
 import { useNavigation } from '../navigation/index.jsx';
 import { closeBubble } from '../api/client.js';
@@ -21,15 +21,16 @@ export default function Bubble() {
       setBusy(false);
     }
   }
-  const open = () =>
-    navigate('chat', { suggestions: bubble.suggestions.slice(0, MAX_SUGGESTIONS) });
+  const open = () => navigate('chat', bubble.contextId
+    ? { contextId: bubble.contextId, helpQuestion: bubble.question }
+    : { suggestions: (bubble.suggestions ?? []).slice(0, MAX_SUGGESTIONS) });
   return (
     <aside className="help-bubble" aria-label="AI 도움 제안">
       <button className="help-bubble-main" data-track-id="help-bubble-open" onClick={open}>
         <span className="ai-mark">W</span>
         <span>
-          <strong>도움이 필요하세요?</strong>
-          <small>눌러서 AI 길잡이와 이야기해요</small>
+          <strong>{bubble.question || '도움이 필요하세요?'}</strong>
+          <small>{bubble.mode === 'FAKE' ? '모의 제안 · 눌러서 글자나 음성으로 물어보세요' : '눌러서 글자나 음성으로 물어보세요'}</small>
         </span>
       </button>
       {error && <p role="alert">{error}</p>}

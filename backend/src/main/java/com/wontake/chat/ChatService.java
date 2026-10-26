@@ -1,6 +1,8 @@
 package com.wontake.chat;
 
 import com.wontake.ai.AiClient;
+import com.wontake.behavior.BehaviorService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.wontake.api.ApiException;
 import com.wontake.catalog.MenuCatalog;
 import com.wontake.session.DemoStore;
@@ -14,8 +16,13 @@ public class ChatService {
     private final DemoStore store;
     private final MenuCatalog catalog;
     private final AiClient ai;
-    public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai) { this.store=store; this.catalog=catalog; this.ai=ai; }
+    private final BehaviorService behavior;
+    public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai) { this(store,catalog,ai,null); }
+    @Autowired public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior) { this.store=store; this.catalog=catalog; this.ai=ai; this.behavior=behavior; }
     public Reply chat(String userId, String sessionId, String question, String inputType) {
+        return chat(userId,sessionId,question,inputType,null);
+    }
+    public Reply chat(String userId, String sessionId, String question, String inputType,String contextId) {
         if (question == null || question.isBlank() || question.length() > 2000) throw ApiException.invalid("질문을 1~2000자로 입력해 주세요.");
         if (!Set.of("TEXT", "VOICE", "SUGGESTION").contains(Objects.toString(inputType, ""))) throw ApiException.invalid("입력 방식을 확인해 주세요.");
         var s = store.session(userId, sessionId);
@@ -23,7 +30,8 @@ public class ChatService {
             var turns = s.messages().stream().map(m -> new AiClient.Turn(m.role(), m.message())).toList();
             var allEvents = Boolean.TRUE.equals(store.consent(userId)) ? s.events() : List.<DemoStore.Event>of();
             var events = allEvents.subList(Math.max(0, allEvents.size()-20), allEvents.size());
-            var result = ai.answer(new AiClient.Context(question.trim(), inputType, turns, events, catalog.all()));
+            var help=behavior==null?null:behavior.context(userId,sessionId,contextId);
+            var result = ai.answer(new AiClient.Context(question.trim(), inputType, turns, events, catalog.all(),help));
             validate(result);
             var ids = List.copyOf(result.menuIds());
             var reply = new Reply(ids.isEmpty() ? "NOT_FOUND" : "ANSWER", "VOICE".equals(inputType) ? result.normalized() : "",

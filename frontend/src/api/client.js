@@ -39,6 +39,7 @@ export const postChat = async (input) => {
 };
 export const getHistory = () => useMock ? mock.getHistory() : request(`/chat/history?${new URLSearchParams(identity())}`);
 export const getHealth = () => useMock ? Promise.resolve({ aiMode: 'FRONTEND_MOCK' }) : request('/health');
+export const analyzeHelp = (contextId) => useMock ? Promise.resolve({ bubble: null }) : request('/assist/analyze', 'POST', { ...identity(), contextId });
 export const postVoice = (blob) =>
   useMock
     ? mock.postVoice(blob)

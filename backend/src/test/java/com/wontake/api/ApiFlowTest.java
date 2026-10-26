@@ -72,4 +72,26 @@ class ApiFlowTest {
         }
         assertTrue(found);
     }
+    @Test void proactivePopupAndBriefFollowupShareServerOwnedContext() throws Exception {
+        String who=UUID.randomUUID().toString();
+        call("/consent","PUT",Map.of("userId",who,"agreed",true));
+        for(var menu:List.of("instant-transfer","overseas-remittance")) {
+            call("/events","POST",Map.of("userId",who,"sessionId",who,"type","SCREEN_ENTER","screenId","transfer","elementId",menu));
+            var exit=call("/events","POST",Map.of("userId",who,"sessionId",who,"type","SCREEN_ENTER","screenId","menu"));
+            if(menu.equals("overseas-remittance")) {
+                String contextId=json.readTree(exit.body()).path("analysisId").asText();
+                assertFalse(contextId.isBlank());
+                var analysis=call("/assist/analyze","POST",Map.of("userId",who,"sessionId",who,"contextId",contextId));
+                var bubble=json.readTree(analysis.body()).path("bubble");
+                assertEquals(contextId,bubble.path("contextId").asText());
+                assertEquals("FAKE",bubble.path("mode").asText());
+                assertFalse(bubble.path("question").asText().isBlank());
+                var answer=call("/chat","POST",Map.of("userId",who,"sessionId",who,"message","한도 알려줘","inputType","VOICE","contextId",contextId));
+                assertEquals("transfer-limit-manage",json.readTree(answer.body()).path("menuId").asText());
+                String other=UUID.randomUUID().toString();
+                var crossSession=call("/assist/analyze","POST",Map.of("userId",other,"sessionId",other,"contextId",contextId));
+                assertTrue(json.readTree(crossSession.body()).path("bubble").isNull());
+            }
+        }
+    }
 }

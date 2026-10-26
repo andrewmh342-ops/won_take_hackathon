@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as api from '../api/client.js';
 import { trackScreen, trackClick } from '../tracking/index.js';
+import { findMenu } from '../data/menu.js';
 const Navigation = createContext(null);
 export const useNavigation = () => useContext(Navigation);
 export function NavigationProvider({ children }) {
@@ -11,6 +12,7 @@ export function NavigationProvider({ children }) {
   const [error, setError] = useState('');
   const [bubble, setBubble] = useState(null);
   const current = useRef({ route, agreed });
+  const latestAnalysis = useRef(null);
   current.current = { route, agreed };
   // 지나온 화면 기록. 홈은 출발점이라 홈으로 가면 기록을 비운다.
   const history = useRef([]);
@@ -46,8 +48,19 @@ export function NavigationProvider({ children }) {
     let active = true;
     if (ready && !['consent', 'agent', 'login'].includes(route.screen))
       trackScreen(route.screen, agreed, route.params.menuId)
-        .then((result) => {
-          if (active && result.bubble) setBubble(result.bubble);
+        .then(async (result) => {
+          if (!result.analysisId) {
+            if (active && current.current.agreed === true && result.bubble) setBubble(result.bubble);
+            return;
+          }
+          // 빠르게 다른 메뉴로 이동해도 이미 감지한 행동 흐름의 분석 요청은 보낸다.
+          latestAnalysis.current = result.analysisId;
+          const analysis = await api.analyzeHelp(result.analysisId);
+          const now = current.current;
+          const category = findMenu(now.route.params.menuId)?.category;
+          if (latestAnalysis.current === result.analysisId && now.agreed === true && analysis.bubble
+            && !['chat', 'consent', 'agent', 'login'].includes(now.route.screen)
+            && (!category || category === analysis.bubble.category)) setBubble(analysis.bubble);
         })
         .catch(() => {});
     return () => {

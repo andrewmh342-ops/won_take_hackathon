@@ -16,7 +16,6 @@ public class DemoStore {
         public final String userId;
         public final List<Event> eventLog = new ArrayList<>();
         public final List<Message> conversation = new ArrayList<>();
-        public final Map<String, List<Long>> entries = new HashMap<>();
         public volatile long touched = System.currentTimeMillis();
         public Session(String userId) { this.userId = userId; }
         public synchronized List<Event> events() { return List.copyOf(eventLog); }
@@ -33,7 +32,7 @@ public class DemoStore {
     public void consent(String userId, boolean agreed) {
         consents.put(id(userId), agreed);
         if (!agreed) sessions.values().stream().filter(s -> s.userId.equals(userId)).forEach(s -> {
-            synchronized(s) { s.eventLog.clear(); s.entries.clear(); }
+            synchronized(s) { s.eventLog.clear(); }
         });
     }
     public synchronized Session session(String userId, String sessionId) {
@@ -61,17 +60,13 @@ public class DemoStore {
             if (!Boolean.TRUE.equals(consent(userId))) return false;
             s.eventLog.add(new Event(type, screenId, elementId, "SEARCH".equals(type) ? query : null, Instant.now().toString()));
             while(s.eventLog.size() > 200) s.eventLog.removeFirst();
-            if (!type.equals("SCREEN_ENTER") || never.contains(userId) || Set.of("chat", "home", "menu").contains(screenId)) return false;
-            long now = System.currentTimeMillis();
-            var times = s.entries.computeIfAbsent(screenId, key -> new ArrayList<>());
-            times.removeIf(t -> now - t > 60000); times.add(now);
-            return times.size() == 3;
+            return true;
         }
     }
     public void close(String userId, String sessionId, String screenId, String action) {
         if (!Set.of("CLOSE", "NEVER").contains(Objects.toString(action, ""))) throw ApiException.invalid("닫기 동작을 확인해 주세요.");
-        var s = session(userId, sessionId);
-        synchronized(s) { s.entries.remove(screenId); }
+        session(userId, sessionId);
         if (action.equals("NEVER")) never.add(userId);
     }
+    public boolean never(String userId) { return never.contains(userId); }
 }

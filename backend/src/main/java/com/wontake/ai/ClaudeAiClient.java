@@ -12,25 +12,46 @@ public class ClaudeAiClient implements AiClient {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JsonMapper json = new JsonMapper();
     private final URI endpoint;
-    private final String key, model, workspace, version, system;
+    private final String key, model, workspace, version, system, behaviorSystem;
     private final Duration timeout;
     public ClaudeAiClient(URI endpoint, String key, String model, String workspace, String version, Duration timeout) {
         this.endpoint=endpoint; this.key=key; this.model=model; this.workspace=workspace; this.version=version; this.timeout=timeout;
-        try (var stream = getClass().getResourceAsStream("/ai/chat-system.txt")) {
+        system=readPrompt("chat-system.txt");
+        behaviorSystem=readPrompt("behavior-system.txt");
+    }
+    private String readPrompt(String name) {
+        try (var stream = getClass().getResourceAsStream("/ai/"+name)) {
             if (stream==null) throw new IllegalStateException("AI 지침 파일 없음");
-            system = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) { throw new IllegalStateException("AI 지침을 읽지 못했습니다.", e); }
     }
     @Override public String mode() { return "CLAUDE"; }
     @Override public Answer answer(Context context) {
-        try {
             var properties = Map.of(
                 "reply", Map.of("type", "string"),
                 "normalized", Map.of("type", "string"),
                 "menuIds", Map.of("type", "array", "items", Map.of("type", "string", "enum", context.menus().stream().map(m -> m.id()).toList())),
                 "steps", Map.of("type", "array", "items", Map.of("type", "string")));
             var schema = Map.of("type", "object", "properties", properties, "required", List.of("reply", "normalized", "menuIds", "steps"), "additionalProperties", false);
-            var body = Map.of("model", model, "max_tokens", 1200, "system", system,
+            var value=call(context,schema,system);
+            if (!value.isObject() || value.size()!=4 || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
+                || !value.path("menuIds").isArray() || !value.path("steps").isArray()) throw invalid();
+            for (var node : value.path("menuIds")) if (!node.isTextual()) throw invalid();
+            for (var node : value.path("steps")) if (!node.isTextual()) throw invalid();
+            return json.treeToValue(value, Answer.class);
+    }
+    @Override public ProactiveSuggestion suggest(BehaviorContext context) {
+        var properties=Map.of("shouldOffer",Map.of("type","boolean"),"question",Map.of("type","string"),
+            "menuIds",Map.of("type","array","items",Map.of("type","string","enum",context.menus().stream().map(m->m.id()).toList())));
+        var schema=Map.of("type","object","properties",properties,"required",List.of("shouldOffer","question","menuIds"),"additionalProperties",false);
+        var value=call(context,schema,behaviorSystem);
+        if(!value.isObject() || value.size()!=3 || !value.path("shouldOffer").isBoolean() || !value.path("question").isTextual() || !value.path("menuIds").isArray()) throw invalid();
+        for(var node:value.path("menuIds")) if(!node.isTextual()) throw invalid();
+        return json.treeToValue(value,ProactiveSuggestion.class);
+    }
+    private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt) {
+        try {
+            var body = Map.of("model", model, "max_tokens", 1200, "system", prompt,
                 "messages", List.of(Map.of("role", "user", "content", json.writeValueAsString(context))),
                 "output_config", Map.of("format", Map.of("type", "json_schema", "schema", schema)));
             var builder = HttpRequest.newBuilder(endpoint).timeout(timeout)
@@ -50,12 +71,7 @@ public class ClaudeAiClient implements AiClient {
             var text = new StringBuilder();
             for (var block : root.path("content")) if ("text".equals(block.path("type").asText())) text.append(block.path("text").asText());
             if (text.isEmpty() || text.length()>12000) throw invalid();
-            var value = json.readTree(text.toString());
-            if (!value.isObject() || value.size()!=4 || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
-                || !value.path("menuIds").isArray() || !value.path("steps").isArray()) throw invalid();
-            for (var node : value.path("menuIds")) if (!node.isTextual()) throw invalid();
-            for (var node : value.path("steps")) if (!node.isTextual()) throw invalid();
-            return json.treeToValue(value, Answer.class);
+            return json.readTree(text.toString());
         } catch (ApiException e) { throw e; }
         catch (HttpTimeoutException e) { throw new ApiException(504, "AI_TIMEOUT", "AI 응답 시간이 길어지고 있어요. 다시 시도해 주세요."); }
         catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new ApiException(503, "AI_INTERRUPTED", "AI 요청이 중단됐어요. 다시 시도해 주세요."); }
