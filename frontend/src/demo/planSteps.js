@@ -24,7 +24,7 @@ const TITLE = {
 };
 const WARN = {
   PAYMENT_ABROAD: { UNSECURED: '해외에서 쓸 카드가 아직 없어요', NEEDS_SETUP: '해외결제를 켜야 해요' },
-  CARD_PROTECTION: { PENDING: '아직 정지하지 않은 카드가 있어요' },
+  CARD_PROTECTION: { PENDING: '아직 정지하지 않은 카드가 있어요.' },
   CASH_ABROAD: { NOT_READY: '현지 돈이 아직 준비되지 않았어요' },
 };
 

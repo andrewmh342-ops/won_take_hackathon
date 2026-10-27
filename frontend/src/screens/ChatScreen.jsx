@@ -38,7 +38,8 @@ export default function ChatScreen() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [handoffBusy, setHandoffBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
-  const threadEnd = useRef(null);
+  const latestMessage = useRef(null);
+  const thinkingBubble = useRef(null);
   const initialQuestionSent = useRef(false);
   const mounted = useRef(true);
   const voicePending = useRef(false);
@@ -110,10 +111,6 @@ export default function ChatScreen() {
   }, [params.intentId, params.question, params.autoSend, historyReady, send]);
 
   useEffect(() => {
-    threadEnd.current?.scrollIntoView({ block: 'nearest' });
-  }, [messages, busy]);
-
-  useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
@@ -123,6 +120,16 @@ export default function ChatScreen() {
 
   const lastAnswer = messages.findLast((message) => message.role === 'ASSISTANT');
   const lastPlanMessage = messages.findLast((message) => message.role === 'ASSISTANT' && message.transferPlan);
+  const lastMessage = messages.at(-1);
+  useEffect(() => {
+    if (lastMessage?.role !== 'USER' && lastMessage?.role !== 'ASSISTANT') return;
+    latestMessage.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [lastMessage]);
+  // 답을 기다리는 동안에는 입력 중 말풍선이 보이도록 내린다.
+  useEffect(() => {
+    if (busy) thinkingBubble.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [busy]);
+
   const handoffHighlighted = Boolean(
     lastAnswer &&
       lastAnswer.type !== 'OUT_OF_SCOPE' &&
@@ -220,7 +227,7 @@ export default function ChatScreen() {
       {/* 스크롤해도 뒤로 가기는 위에 고정한다(작업 32). 상담 버튼은 상단 바에 늘 있다. */}
       <header className="chat-header">
         <BackButton />
-        <strong>AI 상담</strong>
+        <strong>WON테이크 상담</strong>
       </header>
       {messages.length === 0 && <p className="chat-intro">막힌 상황을 편하게 말씀해 주세요.<br />예: 카드를 잃어버렸어요</p>}
       {params.helpQuestion && (
@@ -268,6 +275,7 @@ export default function ChatScreen() {
             <li
               className={`chat-message chat-message-${message.role.toLowerCase()}`}
               key={`message-${index}`}
+              ref={message === lastMessage ? latestMessage : undefined}
             >
               <strong>
                 {message.role === 'USER'
@@ -284,19 +292,23 @@ export default function ChatScreen() {
                 active={message === lastPlanMessage}
                 disabled={inputDisabled}
               />
-              {message.mode === 'FAKE' && <small>연결 테스트용 모의 응답 · 실제 AI 판단 아님</small>}
-              {message.role === 'ASSISTANT' && message.normalized && (
-                <p className="normalized-text">
-                  <strong>{message.mode === 'FAKE' ? '인식 원문 (모의 모드)' : '이렇게 이해했어요'}</strong>
-                  {message.normalized}
-                </p>
-              )}
-              {message.role === 'ASSISTANT' && !message.plan && !message.transferPlan && content.steps.length > 0 && (
-                <ol className="answer-steps">
-                  {content.steps.map((step, stepIndex) => (
-                    <li key={`step-${stepIndex}`}>{step}</li>
-                  ))}
-                </ol>
+              {message.role === 'ASSISTANT' && (
+                <div className="chat-message-extra">
+                  {message.mode === 'FAKE' && <small>연결 테스트용 모의 응답 · 실제 AI 판단 아님</small>}
+                  {message.normalized && (
+                    <p className="normalized-text">
+                      <strong>{message.mode === 'FAKE' ? '인식 원문 (모의 모드)' : '이렇게 이해했어요'}</strong>
+                      {message.normalized}
+                    </p>
+                  )}
+                  {!message.plan && !message.transferPlan && content.steps.length > 0 && (
+                    <ol className="answer-steps">
+                      {content.steps.map((step, stepIndex) => (
+                        <li key={`step-${stepIndex}`}>{step}</li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
               )}
               {!message.plan && !message.transferPlan && <MenuReply reply={message} navigate={navigate} />}
               {message.plan && <PlanCard plan={message.plan} onOpen={openPlan} />}
@@ -305,11 +317,10 @@ export default function ChatScreen() {
         })}
         {/* AI가 답을 만드는 동안 대화 안에 입력 중 말풍선을 둔다. */}
         {busy && (
-          <li className="chat-thinking">
+          <li className="chat-thinking" ref={thinkingBubble}>
             <AiThinking kind="chat" compact />
           </li>
         )}
-        <li ref={threadEnd} aria-hidden="true" />
       </ol>
 
       {receipt && (
@@ -374,8 +385,23 @@ export default function ChatScreen() {
             data-track-id="voice-start"
             onClick={recordQuestion}
             disabled={inputDisabled}
+            aria-label="마이크"
+            title="마이크"
           >
-            마이크
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" />
+            </svg>
           </button>
         )}
         <button className="primary chat-send" type="submit" disabled={inputDisabled || !draft.trim()}>
