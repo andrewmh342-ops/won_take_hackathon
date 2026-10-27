@@ -1,6 +1,7 @@
 package com.wontake.ai;
 
 import com.wontake.api.ApiException;
+import com.wontake.assist.BlockCatalog;
 import tools.jackson.databind.json.JsonMapper;
 import java.net.URI;
 import java.net.http.*;
@@ -46,19 +47,42 @@ public class ClaudeAiClient implements AiClient {
                 "menuIds", Map.of("type", "array", "items", Map.of("type", "string", "enum", context.menus().stream().map(m -> m.id()).toList())),
                 "steps", Map.of("type", "array", "items", Map.of("type", "string")),
                 "handoff", Map.of("type", "boolean"),
-                "scope", Map.of("type", "string", "enum", List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE)));
-            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff"), "additionalProperties", false);
+                "scope", Map.of("type", "string", "enum", List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE)),
+                "plan", planSchema(context));
+            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff", "plan"), "additionalProperties", false);
             var value=call(context,schema,system,"low");
             // schema가 scope·handoff를 요구하지만, 빠진 응답은 범위 안·강조 없음으로 본다.
-            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope");
-            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
+            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope"), hasPlan=value.has("plan");
+            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0)+(hasPlan?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
                 || !value.path("menuIds").isArray() || !value.path("steps").isArray() || hasHandoff && !value.path("handoff").isBoolean()
                 || hasScope && !Set.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE).contains(value.path("scope").asText())) throw invalid();
             var menuIds=new ArrayList<String>(); var steps=new ArrayList<String>();
             for (var node : value.path("menuIds")) { if (!node.isTextual()) throw invalid(); menuIds.add(node.asText()); }
             for (var node : value.path("steps")) { if (!node.isTextual()) throw invalid(); steps.add(node.asText()); }
             return new Answer(value.path("reply").asText(), value.path("normalized").asText(), menuIds, steps, value.path("handoff").asBoolean(false),
-                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE);
+                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE, hasPlan ? parsePlan(value.path("plan")) : AiPlan.EMPTY);
+    }
+    private static final List<String> DEFAULT_BLOCK_IDS = new BlockCatalog().ids();
+    /** R5 플랜 schema. blockId는 블록 사전 enum이라 사전 밖 블록을 지어낼 수 없다. */
+    private static Map<String,Object> planSchema(Context context) {
+        var ids = context.blocks() != null ? context.blocks().stream().map(BlockInfo::id).toList() : DEFAULT_BLOCK_IDS;
+        var text = Map.of("type", "string");
+        var block = Map.of("type", "object", "properties", Map.of("blockId", Map.of("type", "string", "enum", ids), "targetRef", text, "param", text, "reason", text),
+            "required", List.of("blockId", "targetRef", "param", "reason"), "additionalProperties", false);
+        return Map.of("type", "object", "properties", Map.of("events", Map.of("type", "array", "items", text), "blocks", Map.of("type", "array", "items", block),
+            "unhandled", Map.of("type", "array", "items", text), "orderReason", text),
+            "required", List.of("events", "blocks", "unhandled", "orderReason"), "additionalProperties", false);
+    }
+    private AiPlan parsePlan(tools.jackson.databind.JsonNode p) {
+        if (!p.isObject() || !p.path("events").isArray() || !p.path("blocks").isArray() || !p.path("unhandled").isArray() || !p.path("orderReason").isTextual()) throw invalid();
+        var events = new ArrayList<String>(); var unhandled = new ArrayList<String>(); var blocks = new ArrayList<AiBlock>();
+        for (var n : p.path("events")) { if (!n.isTextual()) throw invalid(); events.add(n.asText()); }
+        for (var n : p.path("unhandled")) { if (!n.isTextual()) throw invalid(); unhandled.add(n.asText()); }
+        for (var n : p.path("blocks")) {
+            if (!n.isObject() || !n.path("blockId").isTextual() || !n.path("targetRef").isTextual() || !n.path("param").isTextual() || !n.path("reason").isTextual()) throw invalid();
+            blocks.add(new AiBlock(n.path("blockId").asText(), n.path("targetRef").asText(), n.path("param").asText(), n.path("reason").asText()));
+        }
+        return new AiPlan(events, blocks, unhandled, p.path("orderReason").asText());
     }
     @Override public ProactiveSuggestion suggest(BehaviorContext context) {
         var properties=Map.of("shouldOffer",Map.of("type","boolean"),"question",Map.of("type","string"),

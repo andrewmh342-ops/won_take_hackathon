@@ -75,7 +75,7 @@ class HandoffServiceTest {
         };
         new HandoffService(store, catalog, ai).draft("a", "sa");
         assertEquals("이체 한도가 우째 되능교", seen.get().conversation().getFirst().message());
-        assertEquals(21, seen.get().menus().size());
+        assertEquals(28, seen.get().menus().size());
     }
 
     @Test void 모의_요약은_마지막_질문과_안내한_메뉴를_적는다() {

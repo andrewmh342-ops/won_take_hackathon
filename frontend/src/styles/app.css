@@ -1467,3 +1467,417 @@ input::placeholder {
   color: var(--warning);
   background: #fff0f0;
 }
+
+/* R5 원테이크 플랜 카드 */
+.plan-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.plan-eyebrow {
+  margin: 0;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+.plan-card h3 {
+  margin: 4px 0 6px;
+  font-size: 18px;
+}
+.plan-reason,
+.plan-progress {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.plan-progress {
+  color: var(--text);
+  font-weight: 700;
+}
+.plan-steps {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.plan-step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.plan-step.done {
+  opacity: 0.75;
+}
+.plan-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 13px;
+}
+.plan-body p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.plan-body strong {
+  font-size: 15px;
+}
+.plan-target {
+  color: var(--text);
+  font-weight: 700;
+}
+.plan-why,
+.plan-detail {
+  color: var(--muted);
+}
+.plan-adjusted {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+.plan-run {
+  grid-column: 2;
+  justify-self: start;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.plan-unhandled {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--highlight-soft);
+  font-size: 13px;
+}
+.plan-ai-input {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.plan-ai-input pre {
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+}
+.plan-options {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.plan-options li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.plan-notice {
+  color: var(--muted);
+  font-size: 12px;
+}
+.demo-profile {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.demo-profile p {
+  width: 100%;
+  margin: 0;
+}
+.agent-plan {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+/* R5 업무 화면 */
+.plan-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+.plan-banner.done {
+  background: var(--highlight-soft);
+  color: var(--text);
+}
+.plan-banner button {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+.biz-message {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+.biz-notice {
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.biz-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.biz-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.biz-card > button {
+  grid-column: 1 / -1;
+  padding: 10px 14px;
+}
+.biz-card.focus,
+.biz-group.focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.biz-card-body p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.card-face {
+  width: 74px;
+  height: 48px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: var(--surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10px;
+}
+.card-face.travel {
+  background: linear-gradient(135deg, #1e9e8f, #12665d);
+}
+.card-face.stopped {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.wallet-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 800;
+}
+.badge {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.badge-ok {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.badge-stop {
+  background: #fdecee;
+  color: var(--warning);
+}
+.badge-info {
+  background: var(--bg);
+  color: var(--text);
+}
+.biz-group {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.biz-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.biz-group > .muted {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.sub-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.sub-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+.sub-list label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+.sub-list label.disabled {
+  opacity: 0.6;
+}
+.sub-list label input {
+  grid-row: span 2;
+}
+.sub-brand {
+  font-weight: 800;
+  font-size: 14px;
+}
+.sub-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.biz-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.biz-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.biz-form label,
+.biz-form fieldset {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.biz-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.biz-form fieldset label {
+  display: flex;
+  gap: 8px;
+  font-weight: 500;
+}
+.biz-form select,
+.biz-form input[type='date'],
+.biz-form input[inputmode] {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 15px;
+}
+.fx-result {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 800;
+}
+.fx-result.warn {
+  background: #fdecee;
+  color: var(--warning);
+}
+.fx-table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.fx-table th,
+.fx-table td {
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.fx-table tr.focus td {
+  background: var(--primary-soft);
+}
+.fx-table tbody tr {
+  cursor: pointer;
+}
+.biz-dl {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+.biz-dl div {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 8px;
+  font-size: 14px;
+}
+.biz-dl dt {
+  color: var(--muted);
+}
+.biz-dl dd {
+  margin: 0;
+}
+.biz-done {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+/* 누를 수 없는 버튼은 흐리게 보여 준다(업무 화면·플랜 카드). */
+.biz-page button:disabled,
+.plan-card button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

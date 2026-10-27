@@ -7,5 +7,5 @@ test('백엔드 AI 메뉴와 실제 프런트 이동 대상이 일치한다', ()
   const backend = JSON.parse(readFileSync(new URL('../../../backend/src/main/resources/data/menu.json', import.meta.url), 'utf8'));
   const identities = (items) => items.map(({ id, category, name, screenId }) => ({ id, category, name, screenId }));
   assert.deepEqual(identities(backend), identities(menu));
-  assert.equal(new Set(backend.map((item) => item.id)).size, 21);
+  assert.equal(new Set(backend.map((item) => item.id)).size, 28); // SPEC R5: 메뉴 21→28
 });

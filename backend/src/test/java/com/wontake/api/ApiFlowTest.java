@@ -48,7 +48,7 @@ class ApiFlowTest {
         var health=call("/health","GET",null); assertEquals(200,health.statusCode());
         assertEquals("FAKE",json.readTree(health.body()).path("aiMode").asText());
         assertFalse(health.body().contains("api-key"));
-        assertEquals(21,json.readTree(call("/menus","GET",null).body()).size());
+        assertEquals(28,json.readTree(call("/menus","GET",null).body()).size()); // SPEC R5: 메뉴 21→28
     }
     @Test void handoffRequiresConfirmedDraftAndKeepsServerSnapshot() throws Exception {
         String a=UUID.randomUUID().toString();

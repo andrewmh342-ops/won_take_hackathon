@@ -1,8 +1,9 @@
 // 담당: 역할 2 — AI 대화, 음성 질문, 상담 인계 확인
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getHandoffSummary, postChat, postHandoff, getHistory } from '../api/client.js';
+import { getHandoffSummary, postChat, postHandoff, getHistory, executePlan } from '../api/client.js';
 import { cancelRecognition, startRecognition, stopRecognition } from '../audio/speech.js';
 import Popup from '../components/Popup.jsx';
+import PlanCard from '../components/PlanCard.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 import { findMenu } from '../data/menu.js';
@@ -22,7 +23,7 @@ const summaryFields = [
 ];
 
 export default function ChatScreen() {
-  const { params, navigate, setHandoffHint, handoffPending, setHandoffPending } = useNavigation();
+  const { params, navigate, setHandoffHint, handoffPending, setHandoffPending, openHandoff } = useNavigation();
   const [messages, setMessages] = useState([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [historyAttempt, setHistoryAttempt] = useState(0);
@@ -34,6 +35,8 @@ export default function ChatScreen() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [handoffBusy, setHandoffBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  // R5: 플랜 블록 처리 중 여부
+  const [planBusy, setPlanBusy] = useState(false);
   const threadEnd = useRef(null);
   const initialQuestionSent = useRef(false);
   const mounted = useRef(true);
@@ -77,6 +80,7 @@ export default function ChatScreen() {
             steps: Array.isArray(result.steps) ? result.steps : [],
             notFoundStreak: result.notFoundStreak,
             handoffSuggested: result.handoffSuggested,
+            plan: result.plan ?? null,
           },
         ]);
       } catch (requestError) {
@@ -155,6 +159,30 @@ export default function ChatScreen() {
     } finally {
       voicePending.current = false;
       if (mounted.current) setMicState('idle');
+    }
+  }
+
+  // R5: 블록 실행 결과로 같은 플랜을 다시 그린다(대화 기록의 플랜도 서버에서 같은 상태).
+  function updatePlan(next) {
+    setMessages((current) => current.map((message) => (message.plan?.planId === next.planId ? { ...message, plan: next } : message)));
+  }
+  // R5: 블록을 누르면 대상이 미리 선택된 업무 화면으로 간다. 화면에서 처리하면 같은 가상 상태로 플랜이 완료된다.
+  // 화면을 열면 끝나는 블록(확인·안내·상담)은 열어 봄을 먼저 기록한다.
+  async function runBlock(plan, block) {
+    setPlanBusy(true);
+    setError('');
+    try {
+      if (block.status === 'PENDING' && block.type !== 'ACTION') updatePlan(await executePlan(plan.planId, block.index));
+      if (block.type === 'HANDOFF') {
+        openHandoff();
+        return;
+      }
+      const target = findMenu(block.menuId);
+      if (target) navigate(target.screenId, { menuId: target.id, planId: plan.planId, index: block.index, targetRef: block.targetRef, param: block.param });
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setPlanBusy(false);
     }
   }
 
@@ -287,6 +315,7 @@ export default function ChatScreen() {
                   {menuItem.name} 화면 보기
                 </button>
               ))}
+              {message.plan && <PlanCard plan={message.plan} busy={planBusy} onRun={runBlock} />}
             </li>
           );
         })}

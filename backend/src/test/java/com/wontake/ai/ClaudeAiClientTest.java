@@ -56,7 +56,7 @@ class ClaudeAiClientTest {
         assertEquals("내역",input.path("question").asText());
         assertEquals(2,input.path("history").size());
         assertEquals("exchange",input.at("/recentEvents/0/screenId").asText());
-        assertEquals(21,input.path("menus").size());
+        assertEquals(28,input.path("menus").size()); // SPEC R5: 메뉴 21→28
         assertTrue(request.path("system").asText().contains("확인되지" ) || request.path("system").asText().contains("만들어내지"));
     }
     @Test void authFailureDoesNotBecomeFakeAnswerOrLeakProviderBody() {
@@ -114,6 +114,28 @@ class ClaudeAiClientTest {
         assertTrue(request.path("max_tokens").asInt()>=4000);
         assertTrue(request.path("system").asText().contains("금융앱"));
         assertFalse(request.has("temperature"));
+    }
+    @Test void chatSchemaCarriesPlanWithBlockEnumAndParsesIt() {
+        var mapper=new JsonMapper();
+        var plan=Map.of("events",List.of("카드 분실"),"blocks",List.of(Map.of("blockId","card-lost-report","targetRef","card-1","param","","reason","부정 사용을 막아요")),
+            "unhandled",List.of("신분증"),"orderReason","차단 먼저");
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("scope","IN_SCOPE","reply","정리했어요","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"plan",plan))))));
+        var answer=client().answer(context());
+        assertEquals("card-lost-report",answer.plan().blocks().getFirst().blockId());
+        assertEquals(List.of("신분증"),answer.plan().unhandled());
+        var request=mapper.readTree(body.get());
+        var enumIds=request.at("/output_config/format/schema/properties/plan/properties/blocks/items/properties/blockId/enum");
+        assertTrue(enumIds.toString().contains("card-reissue"));
+        assertEquals(11,enumIds.size());
+        assertFalse(request.at("/output_config/format/schema/properties/plan/additionalProperties").asBoolean());
+        assertTrue(request.path("system").asText().contains("업무 블록"));
+    }
+    @Test void malformedPlanIsRejected() {
+        var mapper=new JsonMapper();
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("scope","IN_SCOPE","reply","x","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"plan",Map.of("blocks","not-array")))))));
+        assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().answer(context())).code);
     }
     @Test void refusalIsReportedSeparately() {
         response="{\"stop_reason\":\"refusal\",\"content\":[]}";

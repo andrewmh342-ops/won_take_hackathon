@@ -221,3 +221,30 @@
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 이번 승인 범위(상단 승인 줄, R2 이용 범위·사용량, R3 상단 버튼·노란 강조, 2.4, 3.2)만 수정. 기존 테스트 기대값 안 고침(테스트 추가만).
 - 확인하지 못한 것: 실제 Claude의 범위 판정 정확도·우회 시도 방어·답변 품질, fallbacks beta가 이 계정에서 허용되는지(400이면 ANTHROPIC_FALLBACKS=off), 실제 호출당 비용. 상한 숫자는 시연 기준 가정이다.
 - 다음에 할 일: 키 연결 후 docs/claude-local-test.md의 "이용 범위와 크레딧 보호"와 "상담·답변 품질 확인" 체크리스트 실행, 결과로 지침·상한 조정.
+
+### 2026-10-27 · [claude] R5 업무 블록 조립 엔진(원테이크 플랜): 카드 분실·해외여행 준비
+- 사용자 승인: docs/prompts/02_block-engine.md 기준 SPEC R5(요구사항·규칙 18행·데이터·API·AI·테스트·작업 16~19) 승인 후 저장. 결정: 순서는 AI(급한 순)·서버는 선후 관계만, 자동결제는 변경+건별 해지, 블록은 확인 후 가상 상태 변경, 보험은 가입 안내만.
+- 한 일: 블록 사전 blocks.json(11개), 가상 고객 profiles.json(A·B, 가상 환율 JPY·USD·EUR·CNY), 메뉴 7개 추가(카드 6, 여행자 보험 안내 1 → 28개). com.wontake.assist(BlockCatalog, ProfileStore, Plan, PlanService, PlanController): 사전·보유 카드·통화·skipWhen·중복·선후 관계(뒤로 이동/선행 추가, "순서 조정됨")·12개·길이 검증, 사전 밖 일은 unhandled+상담 블록, 실행 API(선행 미완료 409, 재실행 무변경, 자동결제 건별 해지, 세션당 분당 20회), 시연 고객 전환 API. AI 계약: 기존 대화 호출 schema에 plan(blockId enum) 추가, 가명화된 고객 모양·블록 사전을 같은 호출에 전달(추가 호출 없음), chat-system.txt에 [업무 블록 조립] 절, FakeAiClient 결정적 플랜. ChatService type PLAN(찾지 못함 아님, unhandled 있으면 상담 강조). R3 연계: 상담 요약 AI 입력에 플랜 진행(카드는 ref만), 상담사 화면에 복원된 진행 목록, AI 요약의 카드 ref는 카드 이름으로 복원. 프런트: PlanCard(사건·순서 이유·진행·블록 버튼·순서 조정 표시·AI에 보낸 정보), ACTION 확인 팝업(자동결제 건별 선택, "가상 시연" 안내), LINK는 해당 화면 이동, HANDOFF는 상단 상담 흐름, 전체 메뉴 개발용 고객 A/B 전환, mock 플랜.
+- 바뀐 파일과 이유: backend assist/*(새), ai/AiClient·ClaudeAiClient·FakeAiClient, chat/ChatService, handoff/HandoffService, session/UsageGuard·DemoStore(card 화면), data/blocks.json·profiles.json(새)·menu.json, ai/chat-system.txt·handoff-system.txt, 테스트 PlanServiceTest·PlanChatTest·PlanFlowTest(새)·ClaudeAiClientTest(2개 추가); frontend components/PlanCard(새), api/mockPlan·plan.test(새)·client·mock, data/menu.js, screens/ChatScreen·MenuScreen·AgentScreen·ServiceScreen, main.jsx, styles/app.css; SPEC.md·README.md·docs/claude-local-test.md·PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 먼저 작성해 컴파일 실패(98개 오류) 확인 후 구현. `gradlew test bootJar` 100개 통과·0개 실패. 프런트 `node --test src/audio/*.test.js src/api/*.test.js` 25개 통과·0개 실패, `npm run build` 성공. 브라우저(FAKE 8081·Vite 5175, 사용자 8080/5173은 건드리지 않음): 지갑 분실 플랜 7블록·신분증 상담 블록·상담 강조, 재발급 선실행 409 안내, 분실신고→재발급→자동결제(1건 해지) 실행, 상담 연결 → 요약·상담사 화면 플랜 진행, 여행 A(해외결제 설정)/B(트래블카드 신청) 서로 다른 조립, 몽골 → 상담 블록, LINK 화면 이동 후 돌아와도 상태 유지.
+- 기존 테스트 기대값 변경(이유: SPEC R5로 메뉴 21→28): ClaudeAiClientTest·ApiFlowTest·MenuCatalogTest·HandoffServiceTest·catalog.test.js의 메뉴 개수 21→28. HandoffSuggestionTest(내가 쓴 테스트)의 "찾지 못함" 예시 "카드 분실 신고는 어떻게 해요"는 이제 플랜으로 처리되므로 "적금 해지는 어디서 해요"로 교체.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 승인된 R5 범위와 작업 16~19 체크, 3.5 체크리스트 2줄 추가만.
+- 확인하지 못한 것: 실제 Claude의 플랜 순서 판단·이유 품질·사전 준수·보험 추천 금지 준수, plan 필드가 늘어난 schema가 실제 API에서 그대로 허용되는지(키 연결 후 확인), 호출당 입력 토큰 증가분. 커밋하지 않음.
+- 다음에 할 일: 서버 재시작 후 docs/claude-local-test.md "원테이크 플랜(R5) 시연" 6단계를 실제 Claude로 확인.
+
+### 2026-10-27 · [claude] R5 업무 화면 9개와 가상 상태 공유
+- 사용자 피드백: 블록 뒤의 화면이 모두 빈 공통 화면이라 프로토타입으로 부족함. 승인 결정: 블록 버튼은 대상이 미리 선택된 실제 화면으로 이동, 환전 원 미만 절사, 서비스는 실제 브랜드명(시연 예시·제휴 없음 표시), 화면 9개 전부. SPEC R5 업무 화면(요구사항·규칙 10행·데이터·API·금액 규칙·테스트·작업 20~22) 승인 후 저장.
+- 한 일: profiles.json 확장(A 카드 3장·구독 5건(넷플릭스·유튜브 프리미엄·SK텔레콤 / 멜론·쿠팡 와우)·삼성페이/카카오페이, B 카드 1장·구독 2건, 가상 계좌 2·수령 지점 3·주소). DemoActionService(새): CARD_STOP·CARD_REISSUE(정지 카드만)·SUBSCRIPTION(SWITCH는 재발급 후, CANCEL은 언제든, 모두 검사 후 반영)·SIMPLE_PAY_UNLINK·OVERSEAS·TRAVEL_CARD_APPLY(보유 시 409)·EXCHANGE_APPLY(⌊외화×환율÷단위⌋, 200만 원 한도, 수령일 내일~30일, 정수만), 화면용 복원 상태(플랜 진행 포함). `GET /api/demo/state`, `POST /api/demo/action`. PlanService 블록 상태를 가상 상태로 계산(SPEC 완료 조건), 화면 처리 후 열린 플랜 갱신, 진행 요약. 메뉴 screenId를 화면별로 분리. 프런트: 업무 화면 9개(CardList·CardReissue·Subscription·SimplePay·Overseas·TravelCard·FxRate·ExchangeApply·TravelInsurance), 공용 BizLayout(플랜 진행 띠·안내·결과 문구), useDemoState, fx.js(백엔드와 같은 환산), mockDemo. 플랜 블록 버튼은 화면 이동(끝난 블록은 "화면 보기"), 채팅 안 실행 팝업 제거.
+- 바뀐 파일과 이유: backend assist/DemoActionService(새)·PlanService·ProfileStore·PlanController, ai/FakeAiClient(카드 "두 장" 해석), session/DemoStore(화면 화이트리스트), data/profiles.json·menu.json(screenId), 테스트 DemoActionServiceTest(새)·PlanFlowTest(1개 추가)·PlanChatTest(카드 수 2→3); frontend screens 9개(새)·components/BizLayout(새)·demo/fx·fx.test·useDemoState(새)·api/mockDemo(새)·client·components/PlanCard·screens/ChatScreen·data/menu.js·main.jsx·styles/app.css; SPEC.md·docs/claude-local-test.md·PROGRESS.md.
+- 실행한 테스트와 결과: 프런트 fx.test는 구현 전 실패 확인 후 통과. 백엔드 새 테스트는 작성 직후 다른 프로세스(사용자가 띄운 8082 백엔드·Gradle 데몬)가 backend/.gradle 잠금을 잡아 구현 전 실패 확인을 못 함(사용자 허락 후 그 두 프로세스 종료). `gradlew test bootJar` 113개 통과·0개 실패. 프런트 Node 28개 통과·0개 실패, `npm run build` 성공. 브라우저(FAKE 8081·Vite 5175): 카드 한 장 분실 플랜 → 내 카드 분실신고 → 재발급(가상 주소) → 구독 2건 새 카드·1건 해지 → 간편결제 해제 → 플랜 "원테이크 완료"; 고객 B 일본 여행 → 환율(15,001 JPY=135,759원) → 환전 신청 → 트래블카드 신청(발급 대기) → 보험 안내 → "원테이크 완료"; 메뉴로 직접 들어가 처리 가능; 1,450 USD는 한도 안내와 버튼 비활성; 콘솔 오류 0건.
+- 기존 테스트 변경: PlanChatTest(내가 쓴 테스트) AI 입력 카드 수 2→3(SPEC 화면 데이터로 고객 A 카드 3장). 다른 기존 기대값은 그대로.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 승인된 R5 업무 화면 범위와 작업 20~22 체크만.
+- 확인하지 못한 것: 실제 Claude 모드에서 새 카드 3장 상태로 플랜 순서·대상 카드 선택 품질. 브랜드명 사용에 따른 상표 문제는 사용자 결정(화면에 시연 예시·제휴 없음 표시). 커밋하지 않음.
+
+### 2026-10-27 · [claude] R5 보완 SPEC: 분실 카드 직접 확인·구독은 다른 보유 카드로·AI 입력 전체 가명화
+- 사용자 요청: C:\won_take_hackathon_codex(Codex 버전)와 비교 후 세 가지를 반영해 SPEC 수정(사용자 "이대로 spec.md 수정해줘"로 승인). Codex 폴더는 읽기만 하고 고치지 않음.
+- 바뀐 파일과 이유: SPEC.md (상단 R5 보완 승인 줄, R5 가명화·분실 카드 확인 문단, 규칙 표에 분실 카드 확인 8행·가명화 7행, R5 업무 화면 규칙의 구독 변경 행 교체(재발급 전 변경 409 삭제 → 옮길 카드 미선택 400·잘못된 카드 400·다른 카드로 이동·옮길 카드 없음·해지), 화면 설명, 2.3 auto-payment-switch 선행 블록을 분실신고로, 2.4 SUBSCRIPTION toRef·confirm-cards API·오류 코드, 3.6 테스트, 4장 작업 23~25), PROGRESS.md (기록).
+- 실행한 테스트와 결과: 테스트 없음(문서 작업). 코드 변경 없음.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 사용자 승인 범위만 수정.
+- 확인하지 못한 것: 구현 전이라 동작 검증 없음. 기존 테스트 중 "자동결제 변경만 오면 분실신고·재발급 추가", 플랜 안 자동결제 실행(SWITCH 기본값)은 새 SPEC에 맞게 기대값 변경이 필요함(구현 시 보고).
+- 다음에 할 일: 작업 23~25를 테스트 먼저 작성 후 구현. 커밋하지 않음.
