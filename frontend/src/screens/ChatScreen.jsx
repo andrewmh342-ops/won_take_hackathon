@@ -5,7 +5,7 @@ import { cancelRecognition, startRecognition, stopRecognition } from '../audio/s
 import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
-import { openReplyMenu, claimInitialQuestion } from '../chat/menuNavigation.js';
+import { openReplyMenu, claimInitialQuestion, menuReplyContent } from '../chat/menuNavigation.js';
 import MenuReply from '../chat/MenuReply.jsx';
 import PlanReply from '../plan/PlanReply.jsx';
 
@@ -255,6 +255,7 @@ export default function ChatScreen() {
 
       <ol className="chat-thread" aria-live="polite" aria-label="대화 내용">
         {messages.map((message, index) => {
+          const content = menuReplyContent(message);
           return (
             <li
               className={`chat-message chat-message-${message.role.toLowerCase()}`}
@@ -269,7 +270,7 @@ export default function ChatScreen() {
               </strong>
               {message.heardText && <small>들은 말</small>}
               <PlanReply
-                text={message.text}
+                text={content.text}
                 plan={message.role === 'ASSISTANT' ? message.plan : undefined}
                 onFill={send}
                 active={message === lastPlanMessage}
@@ -282,9 +283,9 @@ export default function ChatScreen() {
                   {message.normalized}
                 </p>
               )}
-              {message.role === 'ASSISTANT' && message.steps.length > 0 && (
+              {message.role === 'ASSISTANT' && content.steps.length > 0 && (
                 <ol className="answer-steps">
-                  {message.steps.map((step, stepIndex) => (
+                  {content.steps.map((step, stepIndex) => (
                     <li key={`step-${stepIndex}`}>{step}</li>
                   ))}
                 </ol>
