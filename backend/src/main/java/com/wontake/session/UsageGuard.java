@@ -19,10 +19,11 @@ public class UsageGuard {
     public static final int OUT_OF_SCOPE_LIMIT = 3;
     public static final long BLOCK_MILLIS = 600_000;
     public static final int SUMMARY_PER_SESSION = 5;
+    public static final int PLAN_PER_MINUTE = 20;
     private static final long MINUTE = 60_000;
 
     private static class Usage {
-        final Deque<Long> recent = new ArrayDeque<>();
+        final Deque<Long> recent = new ArrayDeque<>(), planRecent = new ArrayDeque<>();
         int total, outOfScope, summaries;
         long blockedUntil = Long.MIN_VALUE;
     }
@@ -45,6 +46,16 @@ public class UsageGuard {
                 if (server.size() >= SERVER_PER_MINUTE) throw new ApiException(503, "CHAT_BUSY", "지금 문의가 많아요. 잠시 뒤에 다시 물어봐 주세요.");
                 u.recent.addLast(now); server.addLast(now); u.total++;
             }
+        }
+    }
+    /** R5 플랜 블록 실행(AI 호출 없음)의 세션당 분당 상한. */
+    public void plan(String sessionId) {
+        long now = clock.millis();
+        var u = usage(sessionId);
+        synchronized (u) {
+            prune(u.planRecent, now);
+            if (u.planRecent.size() >= PLAN_PER_MINUTE) throw new ApiException(429, "PLAN_RATE_LIMIT", "너무 빨리 누르고 있어요. 잠시 뒤에 다시 눌러 주세요.");
+            u.planRecent.addLast(now);
         }
     }
     public void outOfScope(String sessionId) {

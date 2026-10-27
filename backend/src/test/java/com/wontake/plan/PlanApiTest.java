@@ -28,7 +28,7 @@ class PlanApiTest {
         assertEquals(200,r.statusCode());
         var reply=json.readTree(r.body());
         assertEquals("PLAN",reply.path("type").asText());
-        var body=reply.path("plan");
+        var body=reply.path("transferPlan");
         assertEquals(3,body.path("tasks").size());
         assertEquals(1_000_000L,body.path("expectedBalance").asLong());
         assertTrue(body.path("canConfirm").asBoolean());
@@ -36,7 +36,7 @@ class PlanApiTest {
     }
     @Test void 월세_금액을_말하지_않으면_승인하지_않고_금액을_묻는다() throws Exception {
         String a=UUID.randomUUID().toString();
-        var body=json.readTree(chat(a,"월세 내고, 엄마한테 30만원 보내줘").body()).path("plan");
+        var body=json.readTree(chat(a,"월세 내고, 엄마한테 30만원 보내줘").body()).path("transferPlan");
         assertEquals("NEEDS_AMOUNT",body.at("/tasks/0/status").asText());
         assertFalse(body.path("canConfirm").asBoolean());
         assertEquals(PlanService.NEEDS_AMOUNT_MESSAGE,body.path("message").asText());
@@ -57,7 +57,7 @@ class PlanApiTest {
         var body=json.readTree(r.body());
         assertEquals("ANSWER",body.path("type").asText());
         assertEquals("instant-transfer",body.path("menuId").asText());
-        assertTrue(body.path("plan").isNull());
+        assertTrue(body.path("transferPlan").isNull());
     }
     /** 가짜 AI도 "누구에게"만으로 이체라고 보지 않는다. 돈을 보내는 말이 함께 있어야 한다. */
     @Test void 상담사에게_연결해_달라는_말은_이체_카드가_아니다() throws Exception {
@@ -65,12 +65,13 @@ class PlanApiTest {
             String a=UUID.randomUUID().toString();
             var body=json.readTree(chat(a,message).body());
             assertNotEquals("PLAN",body.path("type").asText(),message);
-            assertTrue(body.path("plan").isNull(),message);
+            assertTrue(body.path("transferPlan").isNull(),message);
         }
     }
-    @Test void plan_API는_따로_두지_않는다() throws Exception {
+    @Test void 이체_목록을_만드는_POST_plan_API는_없다() throws Exception {
         String a=UUID.randomUUID().toString();
-        assertEquals(404,post("/plan",Map.of("userId",a,"sessionId",a,"message","엄마한테 1만원")).statusCode());
+        // main의 R5가 GET /api/plan을 사용하므로 POST는 405다. 이체 목록은 여전히 채팅에서만 만든다.
+        assertEquals(405,post("/plan",Map.of("userId",a,"sessionId",a,"message","엄마한테 1만원")).statusCode());
     }
     HttpResponse<String> confirm(String session, String planId, String password) throws Exception {
         return post("/plan/confirm",Map.of("userId",session,"sessionId",session,"planId",planId,"password",password));
@@ -78,9 +79,9 @@ class PlanApiTest {
     /** 가상 비밀번호는 application.properties의 app.plan.password(기본값)다. */
     @Test void 빈_금액을_채우고_비밀번호로_한_번만_승인한다() throws Exception {
         String a=UUID.randomUUID().toString();
-        var first=json.readTree(chat(a,"월세 내고, 엄마한테 30만원 보내줘").body()).path("plan");
+        var first=json.readTree(chat(a,"월세 내고, 엄마한테 30만원 보내줘").body()).path("transferPlan");
         assertEquals(409,confirm(a,first.path("planId").asText(),"123456").statusCode());
-        var plan=json.readTree(chat(a,"65만원이요").body()).path("plan");
+        var plan=json.readTree(chat(a,"65만원이요").body()).path("transferPlan");
         assertEquals(650_000L,plan.at("/tasks/0/amount").asLong());
         String id=plan.path("planId").asText();
         var wrong=confirm(a,id,"000000");
@@ -92,7 +93,7 @@ class PlanApiTest {
         var again=confirm(a,id,"123456");
         assertEquals(409,again.statusCode());
         assertEquals("PLAN_ALREADY_CONFIRMED",json.readTree(again.body()).path("code").asText());
-        assertEquals(1_500_000L,json.readTree(chat(a,"엄마한테 10만원 보내줘").body()).at("/plan/balance").asLong());
+        assertEquals(1_500_000L,json.readTree(chat(a,"엄마한테 10만원 보내줘").body()).at("/transferPlan/balance").asLong());
     }
     @Test void 승인_요청에_빈_값이_있으면_400() throws Exception {
         String a=UUID.randomUUID().toString();

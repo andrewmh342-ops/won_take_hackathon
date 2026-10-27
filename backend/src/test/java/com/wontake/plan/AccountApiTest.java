@@ -33,7 +33,7 @@ class AccountApiTest {
     private void approve(String user) throws Exception {
         var chat = post("/chat", Map.of("userId", user, "sessionId", user, "message", "엄마한테 30만원 보내줘", "inputType", "TEXT"));
         assertEquals(200, chat.statusCode());
-        String planId = json.readTree(chat.body()).at("/plan/planId").asText();
+        String planId = json.readTree(chat.body()).at("/transferPlan/planId").asText();
         assertFalse(planId.isBlank());
         assertEquals(200, post("/plan/confirm", Map.of("userId", user, "sessionId", user,
             "planId", planId, "password", "123456")).statusCode());
@@ -65,7 +65,7 @@ class AccountApiTest {
         String user = UUID.randomUUID().toString();
         var chat = post("/chat", Map.of("userId", user, "sessionId", user, "message", "월세 65만원 내고, 50만원은 적금에 넣고, 엄마한테 30만원 보내줘", "inputType", "TEXT"));
         assertEquals(200, chat.statusCode());
-        String planId = json.readTree(chat.body()).at("/plan/planId").asText();
+        String planId = json.readTree(chat.body()).at("/transferPlan/planId").asText();
         var input = Map.of("userId", user, "sessionId", user, "planId", planId, "password", "123456");
         assertEquals(200, post("/plan/confirm", input).statusCode());
         var body = accounts(user);

@@ -19,7 +19,7 @@ class HandoffSuggestionTest {
         assertEquals("NOT_FOUND", first.type());
         assertEquals(1, first.notFoundStreak());
         assertFalse(first.handoffSuggested());
-        var second = service.chat("a", "sa", "카드 분실 신고는 어떻게 해요", "TEXT");
+        var second = service.chat("a", "sa", "적금 해지는 어디서 해요", "TEXT");
         assertEquals(2, second.notFoundStreak());
         assertTrue(second.handoffSuggested());
     }
@@ -29,7 +29,7 @@ class HandoffSuggestionTest {
         var answer = service.chat("a", "sa", "환전 신청", "TEXT");
         assertEquals("ANSWER", answer.type());
         assertEquals(0, answer.notFoundStreak());
-        var again = service.chat("a", "sa", "카드 분실 신고는 어떻게 해요", "TEXT");
+        var again = service.chat("a", "sa", "적금 해지는 어디서 해요", "TEXT");
         assertEquals(1, again.notFoundStreak());
         assertFalse(again.handoffSuggested());
     }

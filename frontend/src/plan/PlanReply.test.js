@@ -25,7 +25,7 @@ test('빈 금액 질문은 카드 뒤에 한 번 표시하고 완성된 목록�
     const ready = renderToStaticMarkup(React.createElement(PlanReply, {
       text, plan: { ...plan, tasks: [{ ...task, amount: 650000, status: 'READY' }], blockers: [] },
     }));
-    assert.ok(ready.indexOf(text) < ready.indexOf('class="plan-card"'));
+    assert.ok(ready.indexOf(text) < ready.indexOf('class="transfer-plan-card"'));
     assert.doesNotMatch(ready, /이체 금액\(원\)/);
     assert.equal(renderToStaticMarkup(React.createElement(PlanReply, { text })), `<p>${text}</p>`);
   } finally {

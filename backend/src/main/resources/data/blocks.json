@@ -1,0 +1,198 @@
+[
+  {
+    "id": "card-lost-report",
+    "name": "카드 분실신고",
+    "menuId": "card-loss-report",
+    "type": "ACTION",
+    "target": "CARD",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "CARD_STOPPED",
+    "description": "잃어버린 카드의 사용을 바로 정지한다. 부정 사용을 막는 첫 단계다.",
+    "effect": "카드 사용 정지(부정 사용 차단). 정지한 카드는 이후 결제에 쓸 수 없다.",
+    "achieves": [
+      "CARD_PROTECTION"
+    ],
+    "leadTime": ""
+  },
+  {
+    "id": "simple-pay-unlink",
+    "name": "간편결제 해제",
+    "menuId": "simple-pay",
+    "type": "ACTION",
+    "target": "CARD",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "NO_SIMPLE_PAY",
+    "description": "휴대폰 간편결제(○○페이 등)에 등록된 카드를 해제해 휴대폰으로 결제되지 않게 한다. 간편결제에 등록된 카드에만 해당한다.",
+    "effect": "휴대폰 간편결제로 이 카드가 결제되지 않게 한다.",
+    "achieves": [
+      "CARD_PROTECTION"
+    ],
+    "leadTime": ""
+  },
+  {
+    "id": "card-reissue",
+    "name": "카드 재발급",
+    "menuId": "card-reissue",
+    "type": "ACTION",
+    "target": "CARD",
+    "param": "NONE",
+    "requires": [
+      "card-lost-report"
+    ],
+    "skipWhen": "REISSUED",
+    "description": "분실신고한 카드와 같은 상품으로 새 카드를 신청한다. 분실신고 다음에만 할 수 있다.",
+    "effect": "재발급 신청 접수. 수령까지 3~5영업일이 걸려 즉시 사용할 수 없다.",
+    "achieves": [],
+    "leadTime": "3~5영업일"
+  },
+  {
+    "id": "auto-payment-switch",
+    "name": "자동결제 카드 변경",
+    "menuId": "auto-payment",
+    "type": "ACTION",
+    "target": "CARD",
+    "param": "NONE",
+    "requires": [
+      "card-lost-report"
+    ],
+    "skipWhen": "NO_AUTO_PAYMENTS",
+    "description": "잃어버린 카드에 걸린 정기결제를 고객이 고른 다른 사용 중 보유 카드로 옮긴다. 원하는 건은 해지할 수 있다. 분실신고 다음에 할 수 있다.",
+    "effect": "이 카드에 걸린 정기결제를 지금 사용 중인 다른 보유 카드로 옮기거나 해지한다.",
+    "achieves": [],
+    "leadTime": ""
+  },
+  {
+    "id": "overseas-payment-check",
+    "name": "해외결제 설정",
+    "menuId": "overseas-payment",
+    "type": "ACTION",
+    "target": "CARD",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "OVERSEAS_ON",
+    "description": "해외에서 카드 결제가 되도록 해외결제를 켠다. 해외결제가 꺼진 카드에만 해당한다.",
+    "effect": "사용 중인 카드의 해외결제를 켠다. 켜진 사용 가능 카드는 해외 결제 수단이 된다.",
+    "achieves": [
+      "PAYMENT_ABROAD"
+    ],
+    "leadTime": ""
+  },
+  {
+    "id": "fx-rate-check",
+    "name": "환율 확인",
+    "menuId": "exchange-rate",
+    "type": "CHECK",
+    "target": "NONE",
+    "param": "CURRENCY",
+    "requires": [],
+    "skipWhen": "",
+    "description": "여행할 나라 통화의 시연용 가상 환율을 보여 준다. param에 통화 코드를 넣는다.",
+    "effect": "시연용 가상 환율 정보 확인. 결제 수단이나 현금을 마련해 주지는 않는다.",
+    "achieves": [],
+    "leadTime": ""
+  },
+  {
+    "id": "travel-card-check",
+    "name": "트래블카드 확인",
+    "menuId": "travel-card-apply",
+    "type": "CHECK",
+    "target": "NONE",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "",
+    "description": "해외 결제·출금에 쓰는 트래블카드를 가지고 있는지 보여 준다.",
+    "effect": "트래블카드를 보유했는지, 지금 사용 가능한지 확인한다.",
+    "achieves": [],
+    "leadTime": ""
+  },
+  {
+    "id": "travel-card-apply",
+    "name": "트래블카드 신청",
+    "menuId": "travel-card-apply",
+    "type": "LINK",
+    "target": "NONE",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "HAS_USABLE_TRAVEL_CARD",
+    "description": "트래블카드가 없을 때 신청 화면으로 이동한다.",
+    "effect": "트래블카드 신청 접수. 발급까지 기간이 걸려 즉시 사용할 수 없다.",
+    "achieves": [],
+    "leadTime": "5~7영업일"
+  },
+  {
+    "id": "fx-exchange-apply",
+    "name": "환전 신청",
+    "menuId": "exchange-apply",
+    "type": "LINK",
+    "target": "NONE",
+    "param": "CURRENCY",
+    "requires": [
+      "fx-rate-check"
+    ],
+    "skipWhen": "",
+    "description": "여행 전에 현금 외화가 필요할 때 환전 신청 화면으로 이동한다. 환율 확인 다음에 둔다.",
+    "effect": "외화 현금 환전 신청 접수. 고른 수령일에 지점에서 받는다.",
+    "achieves": [
+      "CASH_ABROAD"
+    ],
+    "leadTime": ""
+  },
+  {
+    "id": "travel-insurance-guide",
+    "name": "여행자 보험 가입 안내",
+    "menuId": "travel-insurance",
+    "type": "LINK",
+    "target": "NONE",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "",
+    "description": "여행자 보험 가입 안내 화면으로 이동한다. 특정 상품을 추천하거나 권유하지 않는다.",
+    "effect": "여행자 보험 가입 방법 안내(상품 추천 없음). 결제 수단·현금 문제를 해결하지 않는다.",
+    "achieves": [],
+    "leadTime": ""
+  },
+  {
+    "id": "ask-info",
+    "name": "정보 확인",
+    "menuId": "",
+    "type": "INPUT",
+    "target": "NONE",
+    "param": "INFO",
+    "requires": [],
+    "skipWhen": "INFO_KNOWN",
+    "description": "계획을 바꿀 수 있는 정보를 고객에게 묻는다. param에 DEPARTURE_DATE(출국일) 또는 COUNTRY(여행 나라)를 넣는다. 이미 아는 정보는 묻지 않고, 분실신고 같은 긴급 보호 조치보다 앞에 두지 않는다.",
+    "effect": "고객 답을 여행 정보로 저장하고 계획을 다시 판단한다. 그 자체로 문제를 해결하지는 않는다.",
+    "achieves": [],
+    "leadTime": ""
+  },
+  {
+    "id": "alt-payment-check",
+    "name": "대체 결제 수단 확인",
+    "menuId": "overseas-payment",
+    "type": "CHECK",
+    "target": "CARD",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "LOST_OR_STOPPED",
+    "description": "잃어버리지 않은 다른 보유 카드를 해외에서 지금 쓸 수 있는지(사용 가능·해외결제 상태) 보여 준다. 해외결제가 꺼져 있으면 설정 화면으로 이어 준다.",
+    "effect": "대체 카드의 해외 사용 가능 여부를 확인한다. 해외결제가 꺼져 있으면 아직 결제 수단이 아니다.",
+    "achieves": [],
+    "leadTime": ""
+  },
+  {
+    "id": "counselor-handoff",
+    "name": "상담사 연결",
+    "menuId": "",
+    "type": "HANDOFF",
+    "target": "NONE",
+    "param": "NONE",
+    "requires": [],
+    "skipWhen": "",
+    "description": "블록으로 처리할 수 없는 일을 지금까지 내용과 함께 상담사에게 넘긴다.",
+    "effect": "앱에서 처리할 수 없는 남은 일을 지금까지 내용과 함께 상담사에게 넘긴다.",
+    "achieves": [],
+    "leadTime": ""
+  }
+]

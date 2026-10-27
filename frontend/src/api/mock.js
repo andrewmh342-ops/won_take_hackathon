@@ -1,6 +1,8 @@
 // 담당: 공용 — 프론트 시연 전용 고정 응답 (실제 AI 분석 아님)
 import { myAccounts, withdrawalAccount } from '../data/accounts.js';
+import { buildMockPlan, executeMockPlan, confirmMockPlan, answerMockPlan } from './mockPlan.js';
 let agreed = null;
+const plans = new Map();
 let never = localStorage.getItem('wontake-demo-never') === 'true';
 const entries = new Map();
 const tickets = [];
@@ -80,6 +82,21 @@ export const mock = {
         steps: [],
         notFoundStreak,
       };
+    } else if (inputType !== 'SUGGESTION' && buildMockPlan(text)) {
+      const plan = buildMockPlan(text);
+      plans.set(plan.planId, plan);
+      notFoundStreak = 0;
+      result = {
+        type: 'PLAN',
+        normalized: '',
+        reply: '(가짜) 해야 할 일을 순서대로 정리했어요.',
+        intentId: '',
+        menuId: '',
+        steps: [],
+        notFoundStreak,
+        handoffSuggested: false,
+        plan,
+      };
     } else if (inputType === 'SUGGESTION') {
       const answer =
         intentId === 'transfer-limit'
@@ -123,7 +140,7 @@ export const mock = {
         steps: [],
         notFoundStreak,
         handoffSuggested: false,
-        plan: { ...structuredClone(samplePlan), planId: `mock-plan-${++planCount}` },
+        transferPlan: { ...structuredClone(samplePlan), planId: `mock-plan-${++planCount}` },
       };
     } else if (!/앱|은행|계좌|통장|이체|송금|출금|입금|한도|잔액|내역|인증|비밀번호|로그인|증명|서류|환전|환율|외화|카드|대출|상담|돈|오류|안 ?돼/.test(text)) {
       // 백엔드와 같은 규칙: 금융앱 이용 불편과 무관한 질문은 고정 안내로 거절한다.
@@ -177,6 +194,35 @@ export const mock = {
     conversations.push({ role: 'USER', message: text, inputType, intentId: intentId || '' });
     conversations.push({ role: 'ASSISTANT', ...result });
     return result;
+  },
+  async executePlan(planId, index) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    const next = executeMockPlan(plan, index);
+    plans.set(planId, next);
+    return next;
+  },
+  async getPlan(planId) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    return plan;
+  },
+  async reviewPlan(planId) {
+    return this.getPlan(planId); // 모의: 새 할 일 없음
+  },
+  async confirmCards(planId, refs) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    const next = confirmMockPlan(plan, refs);
+    plans.set(planId, next);
+    return next;
+  },
+  async answerPlan(planId, index, value) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    const next = answerMockPlan(plan, index, value);
+    plans.set(planId, next);
+    return next;
   },
   async postVoice() {
     return { recognizedText: '(가짜) 이체 한도가 우째 되능교' };

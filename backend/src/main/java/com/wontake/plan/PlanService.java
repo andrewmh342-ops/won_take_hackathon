@@ -16,7 +16,7 @@ import java.util.*;
  * 고객이 가상 비밀번호로 승인하면 Balances가 출금·내 계좌 입금을 함께 반영한다. 실제 돈은 움직이지 않는다.
  * 승인할 때 AI는 부르지 않는다. AI는 목록만 준비하고, 비밀번호와 승인 결과는 보지 않는다(승인은 대화 기록에도 남기지 않는다).
  */
-@Service
+@Service("transferPlanService")
 public class PlanService {
     /**
      * status: READY, NEEDS_ACCOUNT(주소록에 없음), NEEDS_AMOUNT(금액을 말하지 않음, amount=0).
@@ -49,11 +49,18 @@ public class PlanService {
     /** 고객(userId)별 연속으로 틀린 횟수. 세션별로 세면 새 대화를 열어 잠금을 풀 수 있어 고객별로 센다. */
     private final Map<String, Integer> failures = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<AiClient.Payee> payees;
+    private final com.wontake.assist.Redactor redactor;
 
     /** password는 시연용 가상 간편 비밀번호다(app.plan.password). 비어 있으면 아무 값이나 통과하지 않게 서버를 띄우지 않는다. */
     public PlanService(FinanceBook book, AiClient ai, DemoStore store, Balances balances, @Value("${app.plan.password}") String password) {
+        this(book, ai, store, balances, password, new com.wontake.assist.Redactor(new com.wontake.assist.ProfileStore(store)));
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public PlanService(FinanceBook book, AiClient ai, DemoStore store, Balances balances, @Value("${app.plan.password}") String password,
+                       com.wontake.assist.Redactor redactor) {
         if (password == null || password.isBlank()) throw new IllegalStateException("가상 비밀번호(app.plan.password)가 비어 있습니다.");
         this.book = book; this.ai = ai; this.store = store; this.balances = balances;
+        this.redactor = redactor;
         this.password = password.getBytes(StandardCharsets.UTF_8);
         // AI에는 이름과 별칭만 보낸다. 계좌번호와 이체 이력은 서버에만 둔다.
         payees = book.accounts().stream().map(a -> new AiClient.Payee(a.name(), a.kind(), a.aliases())).toList();
@@ -62,7 +69,8 @@ public class PlanService {
     /** 채팅의 세션 잠금(synchronized(s)) 안에서 부른다. 작업이 있는 목록은 세션에 저장한다. */
     public Plan plan(DemoStore.Session s, String request) {
         AiClient.PlanDraft draft;
-        try { draft = ai.plan(new AiClient.PlanContext(request.trim(), payees)); }
+        var input = new AiClient.PlanContext(request.trim(), payees);
+        try { draft = ai.plan(new AiClient.PlanContext(redactor.text(s.userId, s.id, input.request()), payees, input.amountValues())); }
         catch (ApiException e) {
             if (!"AI_REFUSED".equals(e.code)) throw e;
             draft = new AiClient.PlanDraft(AiClient.Answer.OUT_OF_SCOPE, List.of());
@@ -91,7 +99,8 @@ public class PlanService {
         var targets = pending.tasks().stream().filter(t -> t.status().equals("NEEDS_AMOUNT")).map(Task::target).distinct().toList();
         List<AiClient.AmountDraft> drafts;
         // AI가 거절한 말은 채우지 않고 보통 대화로 넘긴다. 범위 밖 안내와 차단 횟수는 채팅이 맡는다.
-        try { drafts = ai.fill(new AiClient.FillContext(targets, message.trim())); }
+        var input = new AiClient.FillContext(targets, message.trim());
+        try { drafts = ai.fill(new AiClient.FillContext(targets, redactor.text(s.userId, s.id, input.message()), input.amountValues())); }
         catch (ApiException e) {
             if (!"AI_REFUSED".equals(e.code)) throw e;
             return Optional.empty();

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getHandoffSummary, postChat, postHandoff, getHistory } from '../api/client.js';
 import { cancelRecognition, startRecognition, stopRecognition } from '../audio/speech.js';
 import Popup from '../components/Popup.jsx';
+import PlanCard from '../components/PlanCard.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 import { openReplyMenu, claimInitialQuestion, menuReplyContent } from '../chat/menuNavigation.js';
@@ -83,7 +84,8 @@ export default function ChatScreen() {
             steps: Array.isArray(result.steps) ? result.steps : [],
             notFoundStreak: result.notFoundStreak,
             handoffSuggested: result.handoffSuggested,
-            plan: result.plan,
+            plan: result.plan ?? null,
+            transferPlan: result.transferPlan ?? null,
           },
         ]);
         if (openReplyMenu(result, navigate)) setHandoffHint(false);
@@ -119,7 +121,7 @@ export default function ChatScreen() {
   }, []);
 
   const lastAnswer = messages.findLast((message) => message.role === 'ASSISTANT');
-  const lastPlanMessage = messages.findLast((message) => message.role === 'ASSISTANT' && message.plan);
+  const lastPlanMessage = messages.findLast((message) => message.role === 'ASSISTANT' && message.transferPlan);
   const handoffHighlighted = Boolean(
     lastAnswer &&
       lastAnswer.type !== 'OUT_OF_SCOPE' &&
@@ -168,6 +170,9 @@ export default function ChatScreen() {
     }
   }
 
+  // 작업 32: 플랜은 원테이크 화면(가로 단계 탭)에서 한 단계씩 진행한다. 대화에는 요약 카드만 둔다.
+  const openPlan = (plan) => navigate('plan', { planId: plan.planId });
+
   async function requestHandoff() {
     setError('');
     setSummaryLoading(true);
@@ -211,10 +216,12 @@ export default function ChatScreen() {
 
   return (
     <section className="page chat-page">
-      <BackButton />
-      <p className="eyebrow">WON TAKE ASSISTANT</p>
-      <h1>AI 대화</h1>
-      <p className="muted">찾는 메뉴나 막힌 상황을 편하게 말씀해 주세요.</p>
+      {/* 스크롤해도 뒤로 가기는 위에 고정한다(작업 32). 상담 버튼은 상단 바에 늘 있다. */}
+      <header className="chat-header">
+        <BackButton />
+        <strong>AI 상담</strong>
+      </header>
+      {messages.length === 0 && <p className="chat-intro">막힌 상황을 편하게 말씀해 주세요.<br />예: 카드를 잃어버렸어요</p>}
       {params.helpQuestion && (
         <div className="suggestion-list">
           <p><strong>먼저 제안한 도움</strong></p>
@@ -271,7 +278,7 @@ export default function ChatScreen() {
               {message.heardText && <small>들은 말</small>}
               <PlanReply
                 text={content.text}
-                plan={message.role === 'ASSISTANT' ? message.plan : undefined}
+                plan={message.role === 'ASSISTANT' ? message.transferPlan : undefined}
                 onFill={send}
                 active={message === lastPlanMessage}
                 disabled={inputDisabled}
@@ -283,14 +290,15 @@ export default function ChatScreen() {
                   {message.normalized}
                 </p>
               )}
-              {message.role === 'ASSISTANT' && content.steps.length > 0 && (
+              {message.role === 'ASSISTANT' && !message.plan && !message.transferPlan && content.steps.length > 0 && (
                 <ol className="answer-steps">
                   {content.steps.map((step, stepIndex) => (
                     <li key={`step-${stepIndex}`}>{step}</li>
                   ))}
                 </ol>
               )}
-              <MenuReply reply={message} navigate={navigate} />
+              {!message.plan && !message.transferPlan && <MenuReply reply={message} navigate={navigate} />}
+              {message.plan && <PlanCard plan={message.plan} onOpen={openPlan} />}
             </li>
           );
         })}
@@ -322,11 +330,7 @@ export default function ChatScreen() {
         </p>
       )}
 
-      <p className="info-note">
-        질문과 최근 대화는 AI 메뉴 안내에 사용해요. 행동 기록은 동의한 경우에만 함께 사용해요.{' '}
-        마이크를 누르면 Chrome 음성 인식 서비스에서 음성이 처리될 수 있어요.
-        인터넷 연결이 필요하며, 인식이 안 되면 글자로 입력해 주세요.
-      </p>
+      <p className="chat-note">질문은 AI 안내에만 써요. 마이크는 Chrome 음성 인식을 써요.</p>
       {handoffHighlighted && (
         <p className="handoff-hint" role="status">
           답을 찾기 어려우면 위의 <strong>상담</strong> 버튼으로 지금까지 내용을 상담사에게 넘길 수 있어요.

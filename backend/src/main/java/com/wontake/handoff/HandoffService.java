@@ -2,6 +2,7 @@ package com.wontake.handoff;
 
 import com.wontake.ai.AiClient;
 import com.wontake.api.ApiException;
+import com.wontake.assist.PlanService;
 import com.wontake.behavior.BehaviorService;
 import com.wontake.catalog.MenuCatalog;
 import com.wontake.chat.ChatService;
@@ -21,9 +22,10 @@ public class HandoffService {
     private final AiClient ai;
     private final BehaviorService behavior;
     private final UsageGuard guard;
-    public HandoffService(DemoStore store, MenuCatalog catalog, AiClient ai) { this(store,catalog,ai,null,new UsageGuard()); }
-    @Autowired public HandoffService(DemoStore store, MenuCatalog catalog, AiClient ai, BehaviorService behavior, UsageGuard guard) {
-        this.store=store; this.catalog=catalog; this.ai=ai; this.behavior=behavior; this.guard=guard;
+    private final PlanService plans;
+    public HandoffService(DemoStore store, MenuCatalog catalog, AiClient ai) { this(store,catalog,ai,null,new UsageGuard(),null); }
+    @Autowired public HandoffService(DemoStore store, MenuCatalog catalog, AiClient ai, BehaviorService behavior, UsageGuard guard, PlanService plans) {
+        this.store=store; this.catalog=catalog; this.ai=ai; this.behavior=behavior; this.guard=guard; this.plans=plans;
     }
 
     public Map<String,Object> draft(String userId, String sessionId) {
@@ -35,14 +37,20 @@ public class HandoffService {
         // 범위 밖 문답은 AI 요약 입력에서 뺀다(상담사 화면의 대화 원문에는 그대로 남는다).
         var turns=ChatService.history(messages);
         var help=behavior==null||!consent?null:behavior.latest(userId,sessionId);
+        // R5: 최근 원테이크 플랜에서 처리한 일·남은 일·상담 필요한 일
+        var progress=plans==null?List.<String>of():plans.progress(userId,sessionId,true);
+        var progressForAi=plans==null?List.<String>of():plans.progress(userId,sessionId,false); // 가명화: 카드 ref만
         var draft=new LinkedHashMap<String,Object>();
         try {
             // 정리할 기록이 없으면 AI를 부르지 않는다. 세션당 요약 호출 수도 제한한다(크레딧 보호).
-            if(turns.isEmpty() && timeline.isEmpty()) throw new ApiException(200,"NOTHING_TO_SUMMARIZE","정리할 대화가 없어요.");
+            if(turns.isEmpty() && timeline.isEmpty() && progress.isEmpty()) throw new ApiException(200,"NOTHING_TO_SUMMARIZE","정리할 대화가 없어요.");
             if(!guard.summary(sessionId)) throw new ApiException(429,"SUMMARY_LIMIT","요약 횟수를 모두 썼어요.");
-            var s=ai.summarize(new AiClient.HandoffContext(turns,timeline,consent,help,catalog.all()));
+            // 작업 25: 요약 입력도 가명화한다(상담사 화면의 원문은 그대로).
+            var red=plans==null?null:plans.redactor();
+            var s=ai.summarize(red==null?new AiClient.HandoffContext(turns,timeline,consent,help,catalog.all(),progressForAi)
+                :new AiClient.HandoffContext(red.turns(userId,sessionId,turns),red.events(userId,sessionId,timeline),consent,red.help(userId,sessionId,help),catalog.all(),progressForAi));
             var values=s==null?Arrays.<String>asList(null,null,null,null):Arrays.asList(s.purpose(),s.stuckPoint(),s.triedActions(),s.unresolved());
-            for(int i=0;i<FIELDS.size();i++) draft.put(FIELDS.get(i),clean(values.get(i)));
+            for(int i=0;i<FIELDS.size();i++) draft.put(FIELDS.get(i),clean(plans==null?values.get(i):plans.restore(userId,sessionId,values.get(i))));
             // FAKE 모드 요약은 기록을 규칙으로 옮긴 것이라 AI 요약으로 표시하지 않는다.
             draft.put("source","FAKE".equals(ai.mode())?"RECORDED":"AI");
         } catch(ApiException e) {
@@ -53,6 +61,7 @@ public class HandoffService {
         draft.put("mode",ai.mode());
         draft.put("clickConsent",consent); draft.put("clickTimeline",timeline);
         draft.put("conversations",messages);
+        draft.put("planProgress",progress);
         draft.put("draftId",UUID.randomUUID().toString());
         return draft;
     }

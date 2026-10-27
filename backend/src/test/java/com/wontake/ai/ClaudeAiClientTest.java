@@ -56,7 +56,7 @@ class ClaudeAiClientTest {
         assertEquals("내역",input.path("question").asText());
         assertEquals(2,input.path("history").size());
         assertEquals("exchange",input.at("/recentEvents/0/screenId").asText());
-        assertEquals(21,input.path("menus").size());
+        assertEquals(28,input.path("menus").size()); // SPEC R5: 메뉴 21→28
         assertTrue(request.path("system").asText().contains("확인되지" ) || request.path("system").asText().contains("만들어내지"));
     }
     @Test void authFailureDoesNotBecomeFakeAnswerOrLeakProviderBody() {
@@ -110,10 +110,49 @@ class ClaudeAiClientTest {
         var request=mapper.readTree(body.get());
         var scope=request.at("/output_config/format/schema/properties/scope/enum");
         assertEquals(List.of("IN_SCOPE","OUT_OF_SCOPE","TRANSFER_PLAN"),List.of(scope.get(0).asText(),scope.get(1).asText(),scope.get(2).asText()));
-        assertEquals("low",request.at("/output_config/effort").asText());
-        assertTrue(request.path("max_tokens").asInt()>=4000);
+        assertEquals("medium",request.at("/output_config/effort").asText()); // SPEC R5 목표 중심: low→medium
+        assertTrue(request.path("max_tokens").asInt()>=8000);
         assertTrue(request.path("system").asText().contains("금융앱"));
         assertFalse(request.has("temperature"));
+    }
+    @Test void chatSchemaCarriesPlanWithBlockEnumAndParsesIt() {
+        var mapper=new JsonMapper();
+        var plan=Map.of("events",List.of("카드 분실"),"blocks",List.of(Map.of("blockId","card-lost-report","targetRef","card-1","param","","reason","부정 사용을 막아요")),
+            "unhandled",List.of("신분증"),"orderReason","차단 먼저");
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("scope","IN_SCOPE","reply","정리했어요","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"plan",plan))))));
+        var answer=client().answer(context());
+        assertEquals("card-lost-report",answer.plan().blocks().getFirst().blockId());
+        assertEquals(List.of("신분증"),answer.plan().unhandled());
+        var request=mapper.readTree(body.get());
+        var enumIds=request.at("/output_config/format/schema/properties/plan/properties/blocks/items/properties/blockId/enum");
+        assertTrue(enumIds.toString().contains("card-reissue"));
+        assertEquals(13,enumIds.size()); // SPEC R5 목표 중심: 블록 11→13
+        assertFalse(request.at("/output_config/format/schema/properties/plan/additionalProperties").asBoolean());
+        assertTrue(request.path("system").asText().contains("업무 블록"));
+    }
+    @Test void planSchemaAsksGoalsObstaclesConsideredAndPriority() {
+        var mapper=new JsonMapper();
+        var plan=Map.of("events",List.of("트래블카드 분실","일본 여행"),"blocks",List.of(Map.of("blockId","ask-info","targetRef","","param","DEPARTURE_DATE","reason","출국일","priority","REQUIRED")),
+            "unhandled",List.of(),"orderReason","보호 먼저","goals",List.of(Map.of("type","PAYMENT_ABROAD","text","일본에서 결제","required",true)),
+            "obstacles",List.of(Map.of("text","재발급 수령이 늦을 수 있음","resolution","QUESTION","blockIndexes",List.of(0))),
+            "considered",List.of(Map.of("blockId","travel-insurance-guide","reason","지금 문제와 무관")));
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("scope","IN_SCOPE","reply","정리했어요","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"plan",plan))))));
+        var answer=client().answer(context());
+        assertEquals("PAYMENT_ABROAD",answer.plan().goals().getFirst().type());
+        assertEquals("QUESTION",answer.plan().obstacles().getFirst().resolution());
+        assertEquals("travel-insurance-guide",answer.plan().considered().getFirst().blockId());
+        assertEquals("REQUIRED",answer.plan().blocks().getFirst().priority());
+        var props=mapper.readTree(body.get()).at("/output_config/format/schema/properties/plan/properties");
+        for (var key : List.of("goals","obstacles","considered")) assertTrue(props.has(key),key);
+        assertTrue(props.at("/blocks/items/properties/priority/enum").size()==2);
+    }
+    @Test void malformedPlanIsRejected() {
+        var mapper=new JsonMapper();
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("scope","IN_SCOPE","reply","x","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"plan",Map.of("blocks","not-array")))))));
+        assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().answer(context())).code);
     }
     @Test void chatCanHandTransferBundlesToPlan() {
         var mapper=new JsonMapper();
@@ -179,15 +218,18 @@ class ClaudeAiClientTest {
     String planResponse(String text) { return new JsonMapper().writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",text)))); }
     AiClient.PlanContext planContext() { return new AiClient.PlanContext("월세 내고 엄마한테 30만원",List.of(new AiClient.Payee("엄마","CONTACT",List.of("엄마","어머니")))); }
     @Test void planUsesItsOwnPromptAndReadsNullAmountAsUnsaid() {
-        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[{\"target\":\"집주인\",\"amount\":null,\"memo\":\"월세\"},{\"target\":\"엄마\",\"amount\":300000,\"memo\":\"\"}]}");
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[{\"target\":\"집주인\",\"amountRef\":null,\"memo\":\"월세\"},{\"target\":\"엄마\",\"amountRef\":\"amount-1\",\"memo\":\"\"}]}");
         var result=client().plan(planContext());
         assertEquals(List.of(new AiClient.TaskDraft("집주인",null,"월세"),new AiClient.TaskDraft("엄마",300_000L,"")),result.tasks());
         var mapper=new JsonMapper();
         var request=mapper.readTree(body.get());
         assertTrue(request.path("system").asText().contains("작업 목록"));
-        assertTrue(request.at("/output_config/format/schema/properties/tasks/items/properties/amount").isObject());
+        assertTrue(request.at("/output_config/format/schema/properties/tasks/items/properties/amountRef").isObject());
         var input=mapper.readTree(request.at("/messages/0/content").asText());
         assertEquals("엄마",input.at("/payees/0/name").asText());
+        assertEquals("월세 내고 엄마한테 amount-1",input.path("request").asText());
+        assertFalse(request.toString().contains("300000"));
+        assertFalse(input.has("amountValues"));
     }
     @Test void planRejectsNonIntegerAmounts() {
         for (var amount : List.of("\"50만원\"","1.5","1e30")) {
@@ -195,16 +237,24 @@ class ClaudeAiClientTest {
             assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().plan(planContext())).code,amount);
         }
     }
+    @Test void 입력에_없는_금액_참조는_복원하지_않는다() {
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[{\"target\":\"엄마\",\"amountRef\":\"amount-2\",\"memo\":\"\"}]}");
+        assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().plan(planContext())).code);
+        response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amountRef\":\"amount-2\"}]}");
+        assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().fill(fillContext())).code);
+    }
     AiClient.FillContext fillContext() { return new AiClient.FillContext(List.of("집주인"),"65만원이요"); }
     @Test void fillUsesItsOwnPromptAndOnlyAllowsAskedTargets() {
-        response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amount\":650000}]}");
+        response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amountRef\":\"amount-1\"}]}");
         assertEquals(List.of(new AiClient.AmountDraft("집주인",650_000L)),client().fill(fillContext()));
         var mapper=new JsonMapper();
         var request=mapper.readTree(body.get());
         assertTrue(request.path("system").asText().contains("빈 금액"));
         assertEquals("집주인",request.at("/output_config/format/schema/properties/amounts/items/properties/target/enum/0").asText());
         var input=mapper.readTree(request.at("/messages/0/content").asText());
-        assertEquals("65만원이요",input.path("message").asText());
+        assertEquals("amount-1이요",input.path("message").asText());
+        assertFalse(request.toString().contains("650000"));
+        assertFalse(input.has("amountValues"));
     }
     @Test void fillRejectsNonIntegerAmounts() {
         for (var amount : List.of("\"65만원\"","1.5","1e30")) {

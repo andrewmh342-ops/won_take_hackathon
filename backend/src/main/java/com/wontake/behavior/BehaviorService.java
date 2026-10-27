@@ -38,6 +38,9 @@ public class BehaviorService {
     private final Map<String,State> states=new ConcurrentHashMap<>();
     @Autowired public BehaviorService(DemoStore store,MenuCatalog catalog,AiClient ai) { this(store,catalog,ai,Clock.systemUTC()); }
     public BehaviorService(DemoStore store,MenuCatalog catalog,AiClient ai,Clock clock) { this.store=store; this.catalog=catalog; this.ai=ai; this.clock=clock; }
+    /** 작업 25: 말풍선 제안 입력(검색어·이전 대화)도 가명화한다. 없으면(단독 테스트) 그대로 보낸다. */
+    private com.wontake.assist.Redactor redactor;
+    @Autowired(required=false) public void setRedactor(com.wontake.assist.Redactor redactor) { this.redactor=redactor; }
 
     public String record(String userId,String sessionId,String type,String screenId,String elementId,String query) {
         if(!store.event(userId,sessionId,type,screenId,elementId,query) || !type.equals("SCREEN_ENTER") || store.never(userId)) return null;
@@ -86,7 +89,7 @@ public class BehaviorService {
             analysis.started=true;
         }
         AiClient.ProactiveSuggestion answer;
-        try { answer=ai.suggest(analysis.input); }
+        try { answer=ai.suggest(redactor==null?analysis.input:redactor.behavior(userId,sessionId,analysis.input)); }
         catch(RuntimeException e) { return null; } // R1 실패 시 팝업을 만들지 않는다. 가짜 제안으로 바꾸지 않는다.
         synchronized(state) {
             if(state.pending!=analysis || !Boolean.TRUE.equals(store.consent(userId)) || store.never(userId) || !valid(answer)) return null;

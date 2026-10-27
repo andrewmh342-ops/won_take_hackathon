@@ -1,0 +1,64 @@
+{
+  "_note": "시연용 가상 데이터. 브랜드명은 예시이며 실제 제휴·연동이 없다. 금액은 원 단위 정수.",
+  "fxRates": {
+    "JPY": { "unit": 100, "krw": 905, "name": "일본 엔" },
+    "USD": { "unit": 1, "krw": 1380, "name": "미국 달러" },
+    "EUR": { "unit": 1, "krw": 1500, "name": "유로" },
+    "CNY": { "unit": 1, "krw": 190, "name": "중국 위안" }
+  },
+  "accounts": [
+    { "id": "acc-1", "name": "우리 WON 통장", "masked": "1002-***-0001(가상)" },
+    { "id": "acc-2", "name": "우리 주거래 통장", "masked": "1002-***-0002(가상)" }
+  ],
+  "branches": [
+    { "id": "icn-t1", "name": "인천공항 제1터미널 환전소(가상)" },
+    { "id": "icn-t2", "name": "인천공항 제2터미널 환전소(가상)" },
+    { "id": "seoul", "name": "서울 본점 영업부(가상)" }
+  ],
+  "address": "서울특별시 ○○구 ○○로 12, 101동 1001호(가상)",
+  "profiles": {
+    "A": {
+      "label": "시연 고객 A",
+      "cards": [
+        { "ref": "card-1", "name": "우리 신용카드", "kind": "신용", "last4": "4821", "travel": false, "simplePay": "삼성페이", "overseasPayment": true,
+          "autoPayments": [
+            { "id": "ap-1", "category": "OTT", "merchant": "넷플릭스", "amount": 17000, "billingDay": 5 },
+            { "id": "ap-2", "category": "OTT", "merchant": "유튜브 프리미엄", "amount": 14900, "billingDay": 12 },
+            { "id": "ap-3", "category": "통신", "merchant": "SK텔레콤", "amount": 55000, "billingDay": 25 }
+          ] },
+        { "ref": "card-2", "name": "우리 트래블 체크카드", "kind": "체크", "last4": "7310", "travel": true, "simplePay": "", "overseasPayment": false,
+          "autoPayments": [] },
+        { "ref": "card-3", "name": "우리 체크카드", "kind": "체크", "last4": "3356", "travel": false, "simplePay": "카카오페이", "overseasPayment": true,
+          "autoPayments": [
+            { "id": "ap-4", "category": "음악", "merchant": "멜론", "amount": 10900, "billingDay": 1 },
+            { "id": "ap-5", "category": "쇼핑 멤버십", "merchant": "쿠팡 와우", "amount": 7890, "billingDay": 18 }
+          ] }
+      ]
+    },
+    "B": {
+      "label": "시연 고객 B",
+      "cards": [
+        { "ref": "card-1", "name": "우리 체크카드", "kind": "체크", "last4": "2593", "travel": false, "simplePay": "삼성페이", "overseasPayment": true,
+          "autoPayments": [
+            { "id": "ap-1", "category": "통신", "merchant": "KT", "amount": 49000, "billingDay": 20 },
+            { "id": "ap-2", "category": "OTT", "merchant": "티빙", "amount": 13500, "billingDay": 9 }
+          ] }
+      ]
+    },
+    "C": {
+      "label": "시연 고객 C",
+      "cards": [
+        {
+          "ref": "card-1",
+          "name": "우리 트래블 체크카드",
+          "kind": "체크",
+          "last4": "6408",
+          "travel": true,
+          "simplePay": "",
+          "overseasPayment": true,
+          "autoPayments": []
+        }
+      ]
+    }
+  }
+}

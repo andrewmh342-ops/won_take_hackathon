@@ -28,8 +28,8 @@ export default function PlanCard({ plan }) {
   };
 
   return (
-    <section className="plan-card">
-      <div className="plan-summary">
+    <section className="transfer-plan-card">
+      <div className="transfer-plan-summary">
         <div>
           <small>보낼 돈</small>
           <strong>{won(plan.totalAmount)}</strong>
@@ -39,33 +39,33 @@ export default function PlanCard({ plan }) {
           <strong className={plan.expectedBalance < 0 ? 'warn' : ''}>{won(plan.expectedBalance)}</strong>
         </div>
       </div>
-      <ol className="plan-tasks">
+      <ol className="transfer-plan-tasks">
         {plan.tasks.map((task) => {
           const badge = riskBadge(task.risk);
           return (
             <li key={task.order} className={task.status === 'READY' ? '' : 'pending'}>
-              <div className="plan-task-head">
+              <div className="transfer-plan-task-head">
                 <strong>{task.target}</strong>
-                <span className={`plan-badge${badge.warn ? ' warn' : ''}`}>{badge.label}</span>
+                <span className={`transfer-plan-badge${badge.warn ? ' warn' : ''}`}>{badge.label}</span>
               </div>
-              <p className="plan-amount">{task.amount > 0 ? won(task.amount) : '금액 미정'}</p>
+              <p className="transfer-plan-amount">{task.amount > 0 ? won(task.amount) : '금액 미정'}</p>
               <small>{[task.account || '계좌 없음', task.memo].filter(Boolean).join(' · ')}</small>
-              <p className={`plan-note${task.status === 'READY' && !badge.warn ? '' : ' warn'}`}>{taskNote(task)}</p>
+              <p className={`transfer-plan-note${task.status === 'READY' && !badge.warn ? '' : ' warn'}`}>{taskNote(task)}</p>
             </li>
           );
         })}
       </ol>
       {notes.length > 0 && (
-        <ul className="plan-blockers">
+        <ul className="transfer-plan-blockers">
           {notes.map((note) => <li key={note}>{note}</li>)}
         </ul>
       )}
       {result ? (
-        <p className="plan-done" role="status">{confirmedNote(result)}</p>
+        <p className="transfer-plan-done" role="status">{confirmedNote(result)}</p>
       ) : (
         plan.canConfirm && (
-          <form className="plan-confirm" onSubmit={approve}>
-            {hasWarning(plan.tasks) && <p className="plan-note warn">주의 표시가 있는 작업이 있어요. 한 번 더 확인해 주세요.</p>}
+          <form className="transfer-plan-confirm" onSubmit={approve}>
+            {hasWarning(plan.tasks) && <p className="transfer-plan-note warn">주의 표시가 있는 작업이 있어요. 한 번 더 확인해 주세요.</p>}
             <label className="field">
               간편 비밀번호
               <input
@@ -79,7 +79,7 @@ export default function PlanCard({ plan }) {
                 onChange={(event) => setPassword(event.target.value.replace(/\D/g, ''))}
               />
             </label>
-            {error && <p className="plan-note warn" role="alert">{error}</p>}
+            {error && <p className="transfer-plan-note warn" role="alert">{error}</p>}
             <button className="primary full" type="submit" disabled={busy || !password} data-track-id="plan-confirm">
               {busy ? '확인하는 중' : `${won(plan.totalAmount)} 승인하기`}
             </button>
@@ -90,7 +90,7 @@ export default function PlanCard({ plan }) {
           </form>
         )
       )}
-      <small className="plan-foot">실제 돈은 움직이지 않아요. 승인하면 가상 잔액만 줄어요.</small>
+      <small className="transfer-plan-foot">실제 돈은 움직이지 않아요. 승인하면 가상 잔액만 줄어요.</small>
     </section>
   );
 }

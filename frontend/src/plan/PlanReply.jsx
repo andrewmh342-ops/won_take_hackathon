@@ -26,7 +26,7 @@ export default function PlanReply({ text, plan, onFill, active = true, disabled 
       {plan && <PlanCard plan={plan} />}
       {askAfterCard && <p>{text}</p>}
       {askAfterCard && active && onFill && (
-        <form className="plan-confirm" onSubmit={submitAmounts}>
+        <form className="transfer-plan-confirm" onSubmit={submitAmounts}>
           {targets.map((target) => (
             <label className="field" key={target}>
               {target} 이체 금액(원)

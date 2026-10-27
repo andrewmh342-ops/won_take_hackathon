@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MenuCatalogTest {
     @Test void 모든_메뉴에_AI가_쓸_안내_근거가_있다() {
         var catalog = new MenuCatalog();
-        assertEquals(21, catalog.all().size());
+        assertEquals(28, catalog.all().size());
         for (var m : catalog.all()) {
             assertFalse(m.description().contains("이동하는 시연 화면"), m.id() + " 설명이 기본 문구");
             assertTrue(m.guide().size() >= 2 && m.guide().size() <= 4, m.id() + " guide 개수");

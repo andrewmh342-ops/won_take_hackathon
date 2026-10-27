@@ -19,7 +19,7 @@ export function replyMenus(reply) {
 
 // 자동 이동 여부와 표시 문구가 어긋나지 않게 같은 조건으로 대상 메뉴를 고른다.
 function automaticReplyMenu(reply) {
-  if (reply.type !== 'ANSWER' || reply.plan || reply.handoffSuggested || menuIds(reply).length !== 1) return null;
+  if (reply.type !== 'ANSWER' || reply.plan || reply.transferPlan || reply.handoffSuggested || menuIds(reply).length !== 1) return null;
   return replyMenus(reply)[0] ?? null;
 }
 

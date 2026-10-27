@@ -66,10 +66,10 @@ test('계좌 API는 현재 고객 ID로 조회하고 서버 응답을 그대로 
     const { mock } = await server.ssrLoadModule('/src/api/mock.js');
     const before = await mock.getAccounts();
     const reply = await mock.postChat({ message: '엄마한테 30만원 보내줘', inputType: 'TEXT' });
-    await mock.confirmPlan(reply.plan.planId);
+    await mock.confirmPlan(reply.transferPlan.planId);
     const after = await mock.getAccounts();
-    assert.equal(after.totalBalance, before.totalBalance - reply.plan.totalAmount);
-    assert.equal(after.accounts.find(a => a.withdrawal).balance, before.accounts.find(a => a.withdrawal).balance - reply.plan.totalAmount);
+    assert.equal(after.totalBalance, before.totalBalance - reply.transferPlan.totalAmount);
+    assert.equal(after.accounts.find(a => a.withdrawal).balance, before.accounts.find(a => a.withdrawal).balance - reply.transferPlan.totalAmount);
   } finally {
     await server.close();
     globalThis.fetch = fetch;

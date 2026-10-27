@@ -35,9 +35,9 @@ class ChatPlanTest {
         var reply = service(ai(AiClient.Answer.TRANSFER_PLAN, 650_000L)).chat("a", "sa", "월세 65만원 내고 엄마한테 30만원 보내줘", "TEXT");
         assertEquals("PLAN", reply.type());
         assertEquals(ChatService.PLAN_REPLY, reply.reply());
-        assertEquals(2, reply.plan().tasks().size());
-        assertEquals(1_500_000L, reply.plan().expectedBalance());
-        assertTrue(reply.plan().canConfirm());
+        assertEquals(2, reply.transferPlan().tasks().size());
+        assertEquals(1_500_000L, reply.transferPlan().expectedBalance());
+        assertTrue(reply.transferPlan().canConfirm());
         assertTrue(reply.menuIds().isEmpty());
         assertFalse(reply.handoffSuggested());
         assertEquals(1, answers.get());
@@ -46,8 +46,8 @@ class ChatPlanTest {
     @Test void 금액이_빠지면_다시_묻는_문장을_답으로_쓴다() {
         var reply = service(ai(AiClient.Answer.TRANSFER_PLAN, (Long) null)).chat("a", "sa", "월세 내고 엄마한테 30만원 보내줘", "TEXT");
         assertEquals(PlanService.NEEDS_AMOUNT_MESSAGE, reply.reply());
-        assertEquals("NEEDS_AMOUNT", reply.plan().tasks().getFirst().status());
-        assertFalse(reply.plan().canConfirm());
+        assertEquals("NEEDS_AMOUNT", reply.transferPlan().tasks().getFirst().status());
+        assertFalse(reply.transferPlan().canConfirm());
     }
     /** 채팅 AI와 plan AI를 한 번씩 부르지만, 고객 질문은 하나라서 세션 사용량은 한 번만 센다. */
     @Test void 이체_묶음도_세션_사용량은_질문_하나로_센다() {
@@ -59,7 +59,7 @@ class ChatPlanTest {
         assertEquals("ANSWER", reply.type());
         assertEquals("계좌이체 메뉴에서 보낼 수 있어요.", reply.reply());
         assertEquals("instant-transfer", reply.menuId());
-        assertNull(reply.plan());
+        assertNull(reply.transferPlan());
         assertEquals(1, answers.get());
         assertEquals(1, plans.get());
     }
@@ -73,23 +73,23 @@ class ChatPlanTest {
     @Test void 채팅_답이_비어도_작업을_찾으면_카드를_보여_준다() {
         var reply = service(emptyReplyAi(List.of(new AiClient.TaskDraft("엄마", 300_000L, "")))).chat("a", "sa", "엄마한테 30만원 보내줘", "TEXT");
         assertEquals("PLAN", reply.type());
-        assertEquals(1, reply.plan().tasks().size());
+        assertEquals(1, reply.transferPlan().tasks().size());
     }
     @Test void 채팅_답도_비고_작업도_없으면_다시_묻는다() {
         var reply = service(emptyReplyAi(List.of())).chat("a", "sa", "5만원 이체해 줘", "TEXT");
         assertEquals("PLAN", reply.type());
         assertEquals(PlanService.NO_TASK_MESSAGE, reply.reply());
-        assertTrue(reply.plan().tasks().isEmpty());
+        assertTrue(reply.transferPlan().tasks().isEmpty());
     }
     @Test void 일반_질문은_plan을_부르지_않는다() {
         var reply = service(ai(AiClient.Answer.IN_SCOPE, 650_000L)).chat("a", "sa", "이체는 어디서 해요", "TEXT");
-        assertNull(reply.plan());
+        assertNull(reply.transferPlan());
         assertEquals(0, plans.get());
     }
     @Test void 작업_카드는_대화_기록에도_남는다() {
         service(ai(AiClient.Answer.TRANSFER_PLAN, 650_000L)).chat("a", "sa", "월세 65만원 내고 엄마한테 30만원 보내줘", "TEXT");
         var last = store.session("a", "sa").messages().getLast();
         assertEquals(ChatService.PLAN_REPLY, last.message());
-        assertEquals(2, last.answer().plan().tasks().size());
+        assertEquals(2, last.answer().transferPlan().tasks().size());
     }
 }

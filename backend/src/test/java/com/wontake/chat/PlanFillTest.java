@@ -42,28 +42,28 @@ class PlanFillTest {
         var reply = chat("월세 내고 엄마한테 30만원 보내줘");
         assertEquals("이체 금액이 입력되지 않은 항목이 있습니다. 얼마를 이체하시겠어요?", reply.reply());
         assertEquals(reply.reply(), store.session("a", "sa").messages().getLast().message());
-        assertFalse(reply.plan().canConfirm());
+        assertFalse(reply.transferPlan().canConfirm());
         assertEquals(1, answers.get());
         assertEquals(1, plans.get());
         assertEquals(0, fills.get());
     }
 
     @Test void 빈_금액을_다음_말로_채우면_새_목록을_돌려준다() {
-        var before = chat("월세 내고 엄마한테 30만원 보내줘").plan();
+        var before = chat("월세 내고 엄마한테 30만원 보내줘").transferPlan();
         assertFalse(before.canConfirm());
         filled = List.of(amount("집주인", 650_000L));
         var reply = chat("65만원이요");
         assertEquals("PLAN", reply.type());
         assertEquals(ChatService.PLAN_REPLY, reply.reply());
-        var task = reply.plan().tasks().getFirst();
+        var task = reply.transferPlan().tasks().getFirst();
         assertEquals(650_000L, task.amount());
         assertEquals("READY", task.status());
         assertEquals("MEDIUM", task.risk());
         assertEquals("월세", task.memo());
-        assertEquals(300_000L, reply.plan().tasks().get(1).amount());
-        assertEquals(1_500_000L, reply.plan().expectedBalance());
-        assertTrue(reply.plan().canConfirm());
-        assertNotEquals(before.planId(), reply.plan().planId());
+        assertEquals(300_000L, reply.transferPlan().tasks().get(1).amount());
+        assertEquals(1_500_000L, reply.transferPlan().expectedBalance());
+        assertTrue(reply.transferPlan().canConfirm());
+        assertNotEquals(before.planId(), reply.transferPlan().planId());
         // 채우는 차례에는 채팅 AI와 작업 목록 AI를 부르지 않고, 빈 받는 곳 이름과 고객의 말만 보낸다.
         assertEquals(1, answers.get());
         assertEquals(1, plans.get());
@@ -72,14 +72,14 @@ class PlanFillTest {
     @Test void 채운_금액이_평소보다_훨씬_크면_위험도를_다시_계산한다() {
         chat("월세 내고 엄마한테 30만원 보내줘");
         filled = List.of(amount("집주인", 1_950_001L));
-        var task = chat("195만1원").plan().tasks().getFirst();
+        var task = chat("195만1원").transferPlan().tasks().getFirst();
         assertEquals("HIGH", task.risk());
         assertEquals(List.of("ABNORMAL_AMOUNT"), task.riskReasons());
     }
     @Test void 잔액보다_많이_채우면_승인을_막는다() {
         chat("월세 내고 엄마한테 30만원 보내줘");
         filled = List.of(amount("집주인", 2_200_000L));
-        var plan = chat("220만원").plan();
+        var plan = chat("220만원").transferPlan();
         assertEquals(-50_000L, plan.expectedBalance());
         assertEquals(List.of("INSUFFICIENT_BALANCE"), plan.blockers());
     }
@@ -89,11 +89,11 @@ class PlanFillTest {
         filled = List.of(amount("집주인", null));
         var reply = chat("이체는 어디서 해요");
         assertEquals("ANSWER", reply.type());
-        assertNull(reply.plan());
+        assertNull(reply.transferPlan());
         assertEquals(2, answers.get());
         // 빈 금액 목록은 그대로 남아 다음 말에서 다시 채울 수 있다.
         filled = List.of(amount("집주인", 650_000L));
-        assertTrue(chat("월세는 65만원").plan().canConfirm());
+        assertTrue(chat("월세는 65만원").transferPlan().canConfirm());
     }
     @Test void AI가_채우기를_거절하면_보통_대화의_범위_밖_안내로_간다() {
         chat("월세 내고 엄마한테 30만원 보내줘");
@@ -104,9 +104,9 @@ class PlanFillTest {
         assertEquals(ChatService.OUT_OF_SCOPE_REPLY, reply.reply());
     }
     @Test void 채우기_전_목록은_승인할_수_없다() {
-        var before = chat("월세 내고 엄마한테 30만원 보내줘").plan();
+        var before = chat("월세 내고 엄마한테 30만원 보내줘").transferPlan();
         filled = List.of(amount("집주인", 650_000L));
-        var after = chat("65만원이요").plan();
+        var after = chat("65만원이요").transferPlan();
         var e = assertThrows(ApiException.class, () -> planService.confirm("a", "sa", before.planId(), "123456"));
         assertEquals("PLAN_NOT_FOUND", e.code);
         assertEquals(1_500_000L, planService.confirm("a", "sa", after.planId(), "123456").balanceAfter());

@@ -14,7 +14,7 @@ public class DemoStore {
     public record Event(String type, String screenId, String elementId, String query, String timestamp) {}
     public record Message(String role, String message, String inputType, ChatService.Reply answer) {}
     public static class Session {
-        public final String userId;
+        public final String userId, id;
         public final List<Event> eventLog = new ArrayList<>();
         public final List<Message> conversation = new ArrayList<>();
         public volatile long touched = System.currentTimeMillis();
@@ -23,7 +23,7 @@ public class DemoStore {
         public final Map<String, PlanService.Plan> plans = new LinkedHashMap<>();
         /** 승인한 planId. 같은 목록을 두 번 실행하지 않게 남긴다. */
         public final Set<String> confirmedPlans = new HashSet<>();
-        public Session(String userId) { this.userId = userId; }
+        public Session(String userId, String id) { this.userId = userId; this.id = id; }
         public synchronized List<Event> events() { return List.copyOf(eventLog); }
         public synchronized List<Message> messages() { return List.copyOf(conversation); }
     }
@@ -47,7 +47,7 @@ public class DemoStore {
         sessions.entrySet().removeIf(e -> now - e.getValue().touched > 8 * 3600_000L);
         if (!sessions.containsKey(sessionId) && sessions.size() >= 1000)
             throw new ApiException(503, "DEMO_CAPACITY", "시연 세션이 많습니다. 서버를 재시작해 주세요.");
-        var s = sessions.computeIfAbsent(sessionId, key -> new Session(userId));
+        var s = sessions.computeIfAbsent(sessionId, key -> new Session(userId, key));
         if (!s.userId.equals(userId)) throw new ApiException(403, "SESSION_OWNER_MISMATCH", "세션을 확인해 주세요.");
         s.touched = now;
         return s;
@@ -59,7 +59,8 @@ public class DemoStore {
     }
     public boolean event(String userId, String sessionId, String type, String screenId, String elementId, String query) {
         if (!Set.of("SCREEN_ENTER", "CLICK", "SEARCH").contains(Objects.toString(type, ""))) throw ApiException.invalid("이벤트 유형을 확인해 주세요.");
-        if (!Set.of("home", "menu", "transfer", "account", "security", "certificate", "exchange", "chat").contains(Objects.toString(screenId, ""))) throw ApiException.invalid("화면을 확인해 주세요.");
+        if (!Set.of("home", "menu", "transfer", "account", "security", "certificate", "exchange", "card", "chat",
+            "card-list", "card-reissue", "subscription", "simple-pay", "overseas", "travel-card", "fx-rate", "exchange-apply", "travel-insurance", "plan").contains(Objects.toString(screenId, ""))) throw ApiException.invalid("화면을 확인해 주세요.");
         if (elementId != null && elementId.length() > 120 || query != null && query.length() > 2000) throw ApiException.invalid("기록 길이를 확인해 주세요.");
         var s = session(userId, sessionId);
         synchronized(s) {
