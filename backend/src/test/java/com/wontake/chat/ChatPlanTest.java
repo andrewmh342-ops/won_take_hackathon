@@ -2,6 +2,7 @@ package com.wontake.chat;
 
 import com.wontake.ai.AiClient;
 import com.wontake.catalog.MenuCatalog;
+import com.wontake.plan.Balances;
 import com.wontake.plan.FinanceBook;
 import com.wontake.plan.PlanService;
 import com.wontake.session.DemoStore;
@@ -28,7 +29,7 @@ class ChatPlanTest {
             @Override public PlanDraft plan(PlanContext c) { plans.incrementAndGet(); return new PlanDraft(Answer.IN_SCOPE, tasks); }
         };
     }
-    private ChatService service(AiClient ai) { return new ChatService(store, catalog, ai, null, guard, new PlanService(new FinanceBook(), ai)); }
+    private ChatService service(AiClient ai) { return new ChatService(store, catalog, ai, null, guard, new PlanService(new FinanceBook(), ai, store, new Balances(new FinanceBook()), "123456")); }
 
     @Test void 이체_묶음이면_작업_카드를_대화로_돌려준다() {
         var reply = service(ai(AiClient.Answer.TRANSFER_PLAN, 650_000L)).chat("a", "sa", "월세 65만원 내고 엄마한테 30만원 보내줘", "TEXT");

@@ -36,6 +36,17 @@ public class FakeAiClient implements AiClient {
         if (tasks.isEmpty() && FINANCE_WORDS.stream().noneMatch(c.request()::contains)) return new PlanDraft(Answer.OUT_OF_SCOPE, List.of());
         return new PlanDraft(Answer.IN_SCOPE, tasks);
     }
+    /** 연결 테스트용: 빈 곳이 하나면 말한 금액을 그곳에 쓰고, 여럿이면 이름을 말한 조각의 금액만 쓴다. */
+    @Override public List<AmountDraft> fill(FillContext c) {
+        var amounts = new ArrayList<AmountDraft>();
+        for (var target : c.targets()) {
+            Long amount = null;
+            for (var part : c.message().split("[,，]"))
+                if (amount == null && (c.targets().size() == 1 || part.contains(target))) amount = amount(part);
+            amounts.add(new AmountDraft(target, amount));
+        }
+        return amounts;
+    }
     /** long을 넘는 금액은 null(말하지 않음)로 바꾸지 않는다. 그러면 잘못 읽은 것이 "금액을 다시 묻기"로 숨는다. */
     private static Long amount(String part) {
         try {

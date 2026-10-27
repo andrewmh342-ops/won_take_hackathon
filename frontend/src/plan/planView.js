@@ -35,3 +35,11 @@ const BLOCKER = {
   INSUFFICIENT_BALANCE: '잔액보다 보낼 돈이 많아요',
 };
 export const blockerNotes = (blockers) => blockers.map((code) => BLOCKER[code] ?? code);
+
+// 주의(HIGH) 작업이 있으면 승인 전에 경고만 한다. 승인은 막지 않는다(백엔드 PlanService.confirm).
+export const hasWarning = (tasks) => tasks.some((task) => riskBadge(task.risk).warn);
+// 승인 결과(백엔드 PlanService.Confirmation). 실제 돈이 아니라 서버 메모리의 가상 잔액이다.
+export const confirmedNote = ({ totalAmount, balanceAfter }) =>
+  `승인했어요. 가상 생활통장에서 ${won(totalAmount)}이 빠져 ${won(balanceAfter)} 남았어요.`;
+// 승인이 막힌 코드(409)는 카드 안내와 같은 BLOCKER 문구로 보여 준다. 비밀번호 같은 그 밖의 오류는 서버 문장을 쓴다.
+export const confirmError = ({ code, message }) => BLOCKER[code] ?? message;

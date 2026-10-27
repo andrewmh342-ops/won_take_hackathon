@@ -16,7 +16,7 @@ public class ClaudeAiClient implements AiClient {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JsonMapper json = new JsonMapper();
     private final URI endpoint;
-    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem, planSystem;
+    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem, planSystem, fillSystem;
     private final Duration timeout;
     private final int maxCalls;
     private final boolean fallbacks;
@@ -32,6 +32,7 @@ public class ClaudeAiClient implements AiClient {
         behaviorSystem=readPrompt("behavior-system.txt");
         handoffSystem=readPrompt("handoff-system.txt");
         planSystem=readPrompt("plan-system.txt");
+        fillSystem=readPrompt("fill-system.txt");
     }
     private String readPrompt(String name) {
         try (var stream = getClass().getResourceAsStream("/ai/"+name)) {
@@ -98,6 +99,23 @@ public class ClaudeAiClient implements AiClient {
             tasks.add(new TaskDraft(node.path("target").asText(),amount.isNull()?null:amount.longValue(),node.path("memo").asText()));
         }
         return new PlanDraft(value.path("scope").asText(),tasks);
+    }
+    /** target은 물어본 받는 곳 중에서만 고르게 스키마로 막는다. 같은 곳이 두 번 오는 것은 PlanService가 막는다. */
+    @Override public List<AmountDraft> fill(FillContext context) {
+        var item=Map.of("type","object","properties",Map.of("target",Map.of("type","string","enum",context.targets()),
+            "amount",Map.of("type",List.of("integer","null"))),"required",List.of("target","amount"),"additionalProperties",false);
+        var schema=Map.of("type","object","properties",Map.of("amounts",Map.of("type","array","items",item)),
+            "required",List.of("amounts"),"additionalProperties",false);
+        var value=call(context,schema,fillSystem,"low");
+        if(!value.isObject() || value.size()!=1 || !value.path("amounts").isArray()) throw invalid();
+        var amounts=new ArrayList<AmountDraft>();
+        for(var node:value.path("amounts")) {
+            var amount=node.path("amount");
+            if(!node.isObject() || node.size()!=2 || !node.path("target").isTextual()
+                || !(amount.isNull() || amount.isIntegralNumber() && amount.canConvertToLong())) throw invalid();
+            amounts.add(new AmountDraft(node.path("target").asText(),amount.isNull()?null:amount.longValue()));
+        }
+        return amounts;
     }
     private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt,String effort) {
         // 서버 전체 호출 상한: 넘으면 요청을 보내지 않는다.

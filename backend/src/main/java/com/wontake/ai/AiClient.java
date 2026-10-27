@@ -40,10 +40,15 @@ public interface AiClient {
         public static final List<String> PLAN_SCOPES = List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE);
         public boolean outOfScope() { return Answer.OUT_OF_SCOPE.equals(scope); }
     }
+    /** 빈 금액 채우기: AI에는 금액이 빈 받는 곳 이름과 고객의 다음 말만 보낸다. 목록 전체와 잔액은 보내지 않는다. */
+    record FillContext(List<String> targets, String message) {}
+    /** amount가 null이면 고객이 그 받는 곳의 금액을 이번에도 말하지 않은 것이다. */
+    record AmountDraft(String target, Long amount) {}
     Answer answer(Context context);
     default ProactiveSuggestion suggest(BehaviorContext context) { return new ProactiveSuggestion(false,"",List.of()); }
     default HandoffSummary summarize(HandoffContext context) { return new HandoffSummary("","","",""); }
     /** 빈 목록을 돌려주면 구현이 빠진 것이 "작업 없음" 안내로 숨는다. 구현하지 않았으면 바로 드러나게 한다. */
     default PlanDraft plan(PlanContext context) { throw new UnsupportedOperationException("plan 미구현: " + getClass().getSimpleName()); }
+    default List<AmountDraft> fill(FillContext context) { throw new UnsupportedOperationException("fill 미구현: " + getClass().getSimpleName()); }
     default String mode() { return "FAKE"; }
 }

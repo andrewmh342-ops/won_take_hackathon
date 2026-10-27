@@ -7,6 +7,9 @@ const tickets = [];
 const conversations = [];
 const events = [];
 let notFoundStreak = 0;
+let planCount = 0;
+let mockBalance = withdrawalAccount.balance;
+const confirmedPlans = new Set();
 const suggestions = [
   { intentId: 'transfer-limit', question: '내 이체한도가 궁금하신가요?' },
   { intentId: 'overseas-remittance', question: '해외송금을 찾고 계신가요?' },
@@ -116,7 +119,7 @@ export const mock = {
         steps: [],
         notFoundStreak,
         handoffSuggested: false,
-        plan: structuredClone(samplePlan),
+        plan: { ...structuredClone(samplePlan), planId: `mock-plan-${++planCount}` },
       };
     } else if (!/앱|은행|계좌|통장|이체|송금|출금|입금|한도|잔액|내역|인증|비밀번호|로그인|증명|서류|환전|환율|외화|카드|대출|상담|돈|오류|안 ?돼/.test(text)) {
       // 백엔드와 같은 규칙: 금융앱 이용 불편과 무관한 질문은 고정 안내로 거절한다.
@@ -193,6 +196,14 @@ export const mock = {
       conversations: structuredClone(conversations),
     });
     return receipt;
+  },
+  // 비밀번호는 서버(app.plan.password)만 안다. 화면 확인용이라 아무 값이나 받고, 한 번만 승인하는 것만 흉내 낸다.
+  async confirmPlan(planId) {
+    if (confirmedPlans.has(planId)) throw new Error('이미 승인한 목록이에요.');
+    confirmedPlans.add(planId);
+    const balanceBefore = mockBalance;
+    mockBalance -= samplePlan.totalAmount;
+    return { planId, status: 'CONFIRMED', totalAmount: samplePlan.totalAmount, balanceBefore, balanceAfter: mockBalance };
   },
   async getTickets() {
     return structuredClone(tickets);

@@ -195,4 +195,21 @@ class ClaudeAiClientTest {
             assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().plan(planContext())).code,amount);
         }
     }
+    AiClient.FillContext fillContext() { return new AiClient.FillContext(List.of("집주인"),"65만원이요"); }
+    @Test void fillUsesItsOwnPromptAndOnlyAllowsAskedTargets() {
+        response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amount\":650000}]}");
+        assertEquals(List.of(new AiClient.AmountDraft("집주인",650_000L)),client().fill(fillContext()));
+        var mapper=new JsonMapper();
+        var request=mapper.readTree(body.get());
+        assertTrue(request.path("system").asText().contains("빈 금액"));
+        assertEquals("집주인",request.at("/output_config/format/schema/properties/amounts/items/properties/target/enum/0").asText());
+        var input=mapper.readTree(request.at("/messages/0/content").asText());
+        assertEquals("65만원이요",input.path("message").asText());
+    }
+    @Test void fillRejectsNonIntegerAmounts() {
+        for (var amount : List.of("\"65만원\"","1.5","1e30")) {
+            response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amount\":"+amount+"}]}");
+            assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().fill(fillContext())).code,amount);
+        }
+    }
 }

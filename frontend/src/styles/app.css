@@ -1548,6 +1548,32 @@ input::placeholder {
   margin-top: 10px;
   color: var(--muted);
 }
+.plan-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+.plan-confirm .field {
+  margin: 0;
+}
+.plan-confirm .plan-note {
+  margin: 0;
+}
+.plan-confirm .primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.plan-done {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
 .plan-blockers {
   margin: 16px 0 0;
   padding-left: 18px;

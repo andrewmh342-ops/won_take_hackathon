@@ -2,6 +2,7 @@ package com.wontake.plan;
 
 import com.wontake.ai.AiClient;
 import com.wontake.api.ApiException;
+import com.wontake.session.DemoStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import tools.jackson.databind.json.JsonMapper;
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** 한 문장을 작업 카드로 나눈다. AI는 받는 곳과 금액만 고르고, 종류와 위험도와 잔액 계산은 서버 규칙이 한다. 거래는 하지 않는다. */
 class PlanServiceTest {
     private final FinanceBook book = new FinanceBook();
+    private final DemoStore store = new DemoStore();
     private final AtomicInteger calls = new AtomicInteger();
     private final List<AiClient.PlanContext> seen = new ArrayList<>();
 
@@ -21,8 +23,9 @@ class PlanServiceTest {
             @Override public PlanDraft plan(PlanContext c) { calls.incrementAndGet(); seen.add(c); return new PlanDraft(scope, List.of(drafts)); }
         };
     }
+    private PlanService service(AiClient ai) { return new PlanService(book, ai, store, new Balances(book), "123456"); }
     private static AiClient.TaskDraft draft(String target, Long amount) { return new AiClient.TaskDraft(target, amount, ""); }
-    private PlanService.Plan plan(AiClient.TaskDraft... drafts) { return new PlanService(book, ai("IN_SCOPE", drafts)).plan("요청"); }
+    private PlanService.Plan plan(AiClient.TaskDraft... drafts) { return service(ai("IN_SCOPE", drafts)).plan(store.session("a", "sa"), "요청"); }
     private static void invalid(Executable e) { assertEquals("AI_INVALID_RESPONSE", assertThrows(ApiException.class, e).code); }
 
     @Test void 복합_요청은_말한_순서대로_카드를_만들고_예상_잔액을_계산한다() {
@@ -132,7 +135,7 @@ class PlanServiceTest {
     }
 
     @Test void 범위_밖이면_AI가_준_작업을_버리고_고정_안내만() {
-        var p = new PlanService(book, ai("OUT_OF_SCOPE", draft("엄마", 1_000L))).plan("오늘 날씨 어때");
+        var p = service(ai("OUT_OF_SCOPE", draft("엄마", 1_000L))).plan(store.session("a", "sa"), "오늘 날씨 어때");
         assertEquals("OUT_OF_SCOPE", p.type());
         assertEquals(PlanService.OUT_OF_SCOPE_MESSAGE, p.message());
         assertTrue(p.tasks().isEmpty());

@@ -46,6 +46,13 @@ public class ChatService {
             // 범위 밖 질문이 이어진 세션은 AI를 부르지 않는다(크레딧 보호).
             if (guard.blocked(sessionId)) return record(s, question, inputType, outOfScope(s, BLOCKED_REPLY));
             guard.chat(sessionId);
+            // 금액이 빈 작업 카드가 있으면 이번 말에서 그 금액부터 읽는다. 채우면 채팅 AI를 부르지 않는다.
+            // 금액을 말하지 않았으면 보통 대화로 넘어가므로, 서버 전체 호출 상한(app.ai.max-calls)을 최대 3번(fill, answer, plan) 쓴다.
+            // 채운 차례는 이체 묶음 차례와 같이 범위 안 연속 횟수(guard.inScope)를 건드리지 않는다.
+            if (plans != null) {
+                var filled = plans.fill(s, question);
+                if (filled.isPresent()) return record(s, question, inputType, planReply(s, filled.get()));
+            }
             var turns = history(s.messages());
             var allEvents = Boolean.TRUE.equals(store.consent(userId)) ? s.events() : List.<DemoStore.Event>of();
             var events = allEvents.subList(Math.max(0, allEvents.size()-20), allEvents.size());
@@ -64,12 +71,11 @@ public class ChatService {
                 // 같은 질문을 plan에 넘긴다. 세션 사용량(UsageGuard)은 위에서 질문 하나로 이미 셌다.
                 // 서버 전체 호출 상한(app.ai.max-calls)은 실제 호출 수라 이체 묶음 하나에 2번 쓴다.
                 if (plans == null) throw new IllegalStateException("PlanService 없이 만든 ChatService");
-                var plan = plans.plan(question.trim());
+                var plan = plans.plan(s, question.trim());
                 // 받는 사람을 못 찾았으면(예: "5만원 이체해 줘") 채팅 AI가 함께 쓴 메뉴 안내를 보여 준다. Haiku가 분류를 틀려도 SPEC대로 메뉴 안내가 나오고, AI를 다시 부르지 않는다.
                 // 단, Haiku가 이체 묶음일 때 답 문장을 비워 보낸 적이 있어(2026-10-27 실측), 안내가 형식에 맞지 않으면 plan의 다시 묻는 문장을 쓴다.
                 boolean fallback = !plan.type().equals("PLAN") && valid(result);
-                if (!fallback) return record(s, question, inputType, new Reply("PLAN", "", plan.message().isEmpty() ? PLAN_REPLY : plan.message(),
-                    "", List.of(), List.of(), s.notFoundStreak, ai.mode(), false, plan));
+                if (!fallback) return record(s, question, inputType, planReply(s, plan));
             }
             validate(result);
             guard.inScope(sessionId);
@@ -81,6 +87,9 @@ public class ChatService {
                 result.handoff() || s.notFoundStreak >= 2, null);
             return record(s, question, inputType, reply);
         }
+    }
+    private Reply planReply(DemoStore.Session s, PlanService.Plan plan) {
+        return new Reply("PLAN", "", plan.message().isEmpty() ? PLAN_REPLY : plan.message(), "", List.of(), List.of(), s.notFoundStreak, ai.mode(), false, plan);
     }
     private Reply outOfScope(DemoStore.Session s, String text) {
         return new Reply("OUT_OF_SCOPE", "", text, "", List.of(), List.of(), s.notFoundStreak, ai.mode(), false, null);

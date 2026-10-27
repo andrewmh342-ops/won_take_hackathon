@@ -72,4 +72,30 @@ class PlanApiTest {
         String a=UUID.randomUUID().toString();
         assertEquals(404,post("/plan",Map.of("userId",a,"sessionId",a,"message","엄마한테 1만원")).statusCode());
     }
+    HttpResponse<String> confirm(String session, String planId, String password) throws Exception {
+        return post("/plan/confirm",Map.of("userId",session,"sessionId",session,"planId",planId,"password",password));
+    }
+    /** 가상 비밀번호는 application.properties의 app.plan.password(기본값)다. */
+    @Test void 빈_금액을_채우고_비밀번호로_한_번만_승인한다() throws Exception {
+        String a=UUID.randomUUID().toString();
+        var first=json.readTree(chat(a,"월세 내고, 엄마한테 30만원 보내줘").body()).path("plan");
+        assertEquals(409,confirm(a,first.path("planId").asText(),"123456").statusCode());
+        var plan=json.readTree(chat(a,"65만원이요").body()).path("plan");
+        assertEquals(650_000L,plan.at("/tasks/0/amount").asLong());
+        String id=plan.path("planId").asText();
+        var wrong=confirm(a,id,"000000");
+        assertEquals(401,wrong.statusCode());
+        assertEquals("PASSWORD_MISMATCH",json.readTree(wrong.body()).path("code").asText());
+        var ok=confirm(a,id,"123456");
+        assertEquals(200,ok.statusCode());
+        assertEquals(1_500_000L,json.readTree(ok.body()).path("balanceAfter").asLong());
+        var again=confirm(a,id,"123456");
+        assertEquals(409,again.statusCode());
+        assertEquals("PLAN_ALREADY_CONFIRMED",json.readTree(again.body()).path("code").asText());
+        assertEquals(1_500_000L,json.readTree(chat(a,"엄마한테 10만원 보내줘").body()).at("/plan/balance").asLong());
+    }
+    @Test void 승인_요청에_빈_값이_있으면_400() throws Exception {
+        String a=UUID.randomUUID().toString();
+        assertEquals(400,post("/plan/confirm",Map.of("userId",a,"sessionId",a,"password","123456")).statusCode());
+    }
 }

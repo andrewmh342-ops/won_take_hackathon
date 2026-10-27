@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { won, riskBadge, taskNote, blockerNotes } from './planView.js';
+import { won, riskBadge, taskNote, blockerNotes, hasWarning, confirmedNote, confirmError } from './planView.js';
 
 test('금액은 원 단위로 쉼표를 넣어 보여 준다', () => {
   assert.equal(won(650000), '650,000원');
@@ -35,4 +35,23 @@ test('승인을 막는 이유는 서버가 준 순서대로 문장으로 바꾼�
     '잔액보다 보낼 돈이 많아요',
   ]);
   assert.deepEqual(blockerNotes([]), []);
+});
+
+test('주의 작업이 하나라도 있으면 승인 전에 경고한다', () => {
+  assert.equal(hasWarning([{ risk: 'MEDIUM' }, { risk: 'HIGH' }]), true);
+  assert.equal(hasWarning([{ risk: 'MEDIUM' }, { risk: 'MEDIUM_LOW' }]), false);
+  assert.equal(hasWarning([{ risk: 'UNKNOWN' }]), true);
+});
+
+test('승인 결과는 보낸 돈과 남은 잔액을 원 단위로 알려 준다', () => {
+  assert.equal(
+    confirmedNote({ totalAmount: 950000, balanceAfter: 1500000 }),
+    '승인했어요. 가상 생활통장에서 950,000원이 빠져 1,500,000원 남았어요.',
+  );
+});
+
+test('승인이 막히면 카드와 같은 문구로, 그 밖의 오류는 서버 문장으로 보여 준다', () => {
+  assert.equal(confirmError({ code: 'NEEDS_AMOUNT', message: '서버 문장' }), '빈 금액을 먼저 채워야 해요');
+  assert.equal(confirmError({ code: 'PASSWORD_MISMATCH', message: '비밀번호가 맞지 않아요.' }), '비밀번호가 맞지 않아요.');
+  assert.equal(confirmError(new Error('연결 실패')), '연결 실패');
 });
