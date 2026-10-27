@@ -38,6 +38,16 @@ class PlanFillTest {
     private ChatService.Reply chat(String message) { return service.chat("a", "sa", message, "TEXT"); }
     private static AiClient.AmountDraft amount(String target, Long amount) { return new AiClient.AmountDraft(target, amount); }
 
+    @Test void 금액이_빠지면_대화에서_이체_금액을_질문하고_기록한다() {
+        var reply = chat("월세 내고 엄마한테 30만원 보내줘");
+        assertEquals("이체 금액이 입력되지 않은 항목이 있습니다. 얼마를 이체하시겠어요?", reply.reply());
+        assertEquals(reply.reply(), store.session("a", "sa").messages().getLast().message());
+        assertFalse(reply.plan().canConfirm());
+        assertEquals(1, answers.get());
+        assertEquals(1, plans.get());
+        assertEquals(0, fills.get());
+    }
+
     @Test void 빈_금액을_다음_말로_채우면_새_목록을_돌려준다() {
         var before = chat("월세 내고 엄마한테 30만원 보내줘").plan();
         assertFalse(before.canConfirm());

@@ -6,7 +6,7 @@ import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 import { findMenu } from '../data/menu.js';
-import PlanCard from '../plan/PlanCard.jsx';
+import PlanReply from '../plan/PlanReply.jsx';
 
 const responseText = {
   NOT_FOUND: '말씀하신 내용을 찾지 못했어요. 다른 표현으로 다시 물어봐 주세요.',
@@ -39,6 +39,7 @@ export default function ChatScreen() {
   const initialQuestionSent = useRef(false);
   const mounted = useRef(true);
   const voicePending = useRef(false);
+  const requestPending = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -56,8 +57,9 @@ export default function ChatScreen() {
   const send = useCallback(
     async (message, inputType = 'TEXT', intentId, heardText) => {
       const text = message.trim();
-      if (!text || busy || !historyReady) return;
+      if (!text || busy || !historyReady || requestPending.current) return;
 
+      requestPending.current = true;
       setBusy(true);
       setError('');
       setDraft('');
@@ -86,6 +88,7 @@ export default function ChatScreen() {
         setDraft(text);
         setError(`질문을 처리하지 못했어요. 다시 시도해 주세요. (${requestError.message})`);
       } finally {
+        requestPending.current = false;
         setBusy(false);
       }
     },
@@ -112,6 +115,7 @@ export default function ChatScreen() {
   }, []);
 
   const lastAnswer = messages.findLast((message) => message.role === 'ASSISTANT');
+  const lastPlanMessage = messages.findLast((message) => message.role === 'ASSISTANT' && message.plan);
   const handoffHighlighted = Boolean(
     lastAnswer &&
       lastAnswer.type !== 'OUT_OF_SCOPE' &&
@@ -263,7 +267,13 @@ export default function ChatScreen() {
                     : 'WON테이크'}
               </strong>
               {message.heardText && <small>들은 말</small>}
-              <p>{message.text}</p>
+              <PlanReply
+                text={message.text}
+                plan={message.role === 'ASSISTANT' ? message.plan : undefined}
+                onFill={send}
+                active={message === lastPlanMessage}
+                disabled={inputDisabled}
+              />
               {message.mode === 'FAKE' && <small>연결 테스트용 모의 응답 · 실제 AI 판단 아님</small>}
               {message.role === 'ASSISTANT' && message.normalized && (
                 <p className="normalized-text">
@@ -278,7 +288,6 @@ export default function ChatScreen() {
                   ))}
                 </ol>
               )}
-              {message.role === 'ASSISTANT' && message.plan && <PlanCard plan={message.plan} />}
               {menuItems.map((menuItem) => (
                 <button
                   key={menuItem.id}

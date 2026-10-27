@@ -40,7 +40,7 @@ public class PlanService {
     public static final String BLOCKED_MESSAGE = "지금은 승인할 수 없는 목록이에요. 카드의 안내를 확인해 주세요.";
     public static final String OUT_OF_SCOPE_MESSAGE = "한 번에 맡기기는 이체와 내 계좌로 옮기기만 준비해요. 누구에게 얼마를 보낼지 말씀해 주세요.";
     public static final String NO_TASK_MESSAGE = "준비할 이체를 찾지 못했어요. 누구에게 얼마를 보낼지 말씀해 주세요.";
-    public static final String NEEDS_AMOUNT_MESSAGE = "금액을 말씀하지 않은 작업이 있어요. 얼마를 보낼지 알려 주세요.";
+    public static final String NEEDS_AMOUNT_MESSAGE = "이체 금액이 입력되지 않은 항목이 있습니다. 얼마를 이체하시겠어요?";
     private final FinanceBook book;
     private final AiClient ai;
     private final DemoStore store;
