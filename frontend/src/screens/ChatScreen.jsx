@@ -5,7 +5,7 @@ import { cancelRecognition, startRecognition, stopRecognition } from '../audio/s
 import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
-import { findMenu } from '../data/menu.js';
+import { replyMenus, openReplyMenu, claimInitialQuestion } from '../chat/menuNavigation.js';
 import PlanReply from '../plan/PlanReply.jsx';
 
 const responseText = {
@@ -67,6 +67,8 @@ export default function ChatScreen() {
 
       try {
         const result = await postChat({ message: text, inputType, intentId, contextId: params.contextId });
+        // 화면을 떠난 뒤 도착한 응답이 현재 화면을 다시 바꾸지 않게 한다.
+        if (!mounted.current) return;
         setMessages((current) => [
           ...current,
           {
@@ -83,6 +85,7 @@ export default function ChatScreen() {
             plan: result.plan,
           },
         ]);
+        if (openReplyMenu(result, navigate)) setHandoffHint(false);
       } catch (requestError) {
         setMessages((current) => current.at(-1)?.role === 'USER' ? current.slice(0, -1) : current);
         setDraft(text);
@@ -92,11 +95,11 @@ export default function ChatScreen() {
         setBusy(false);
       }
     },
-    [busy, historyReady, params.contextId],
+    [busy, historyReady, params.contextId, navigate, setHandoffHint],
   );
 
   useEffect(() => {
-    if (historyReady && params.question && (params.intentId || params.autoSend) && !initialQuestionSent.current) {
+    if (historyReady && !initialQuestionSent.current && claimInitialQuestion(params)) {
       initialQuestionSent.current = true;
       void send(params.question, params.intentId ? 'SUGGESTION' : 'TEXT', params.intentId);
     }
@@ -251,8 +254,7 @@ export default function ChatScreen() {
 
       <ol className="chat-thread" aria-live="polite" aria-label="대화 내용">
         {messages.map((message, index) => {
-          const menuItems = [...new Set(message.menuIds ?? (message.menuId ? [message.menuId] : []))]
-            .slice(0, 2).map(findMenu).filter(Boolean);
+          const menuItems = replyMenus(message);
 
           return (
             <li
