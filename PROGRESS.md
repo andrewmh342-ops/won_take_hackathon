@@ -293,3 +293,10 @@
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. 홈·스플래시 화면 설명은 SPEC에 아직 없음(승인 시 반영).
 - 확인하지 못한 것: 스플래시 화면 단위 자동 테스트 없음(JSX 테스트 도구 없음, 새 라이브러리 미추가). 커밋하지 않음.
 - 이 폴더 반영: 이전 폴더의 미커밋 변경을 origin/main(d48dc92) 위에 다시 적용. 홈 잔액은 main의 useAccounts·AccountStatus(서버 가상 잔액)를 그대로 써서 고정 잔액 상수를 두지 않음.
+
+### 2026-10-27 · [claude] 빠른 메뉴·전체 메뉴·하단 탭 이모지 통일
+- 사용자 요청: 토스페이스(TossFaceFontMac.ttf)로 홈 빠른 메뉴·연관 메뉴·하단 탭을 이모지 UI로. 토스페이스 저작권 안내(https://toss.im/tossface/copyright)가 "전시회·공모전 출품"을 금지하고 AGENTS.md도 토스 글꼴·자산 사용을 금지해, 사용자 확인 후 폰트 파일 없이 기기 기본 유니코드 이모지로 대신함.
+- 바뀐 파일과 이유: data/emoji.js (새, 분류·메뉴 28개·하단 탭 이모지를 한 곳에), data/emoji.test.js (새), screens/HomeScreen.jsx (빠른 메뉴·혜택을 공용 이모지로), screens/MenuScreen.jsx (분류 바로가기), components/MenuList.jsx (분류 제목·메뉴 행), layout/BottomTab.jsx (탭 이모지, 준비 중 탭은 흑백·흐리게), styles/app.css, PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 먼저 실패 확인 후 구현. 프런트 `node --test src/**/*.test.js` 99개 통과·0개 실패, `npm run build` 성공. 브라우저(5173): 홈 빠른 메뉴·혜택, 전체 메뉴 분류·행, 하단 탭 이모지 표시 확인.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 이모지 모양은 기기(Windows·Mac·Android) 기본 폰트마다 다름. 커밋하지 않음.

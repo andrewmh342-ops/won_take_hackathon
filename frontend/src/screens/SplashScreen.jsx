@@ -1,4 +1,4 @@
-// 담당: 공용 — AI 길잡이로 들어가기 전 WON TAKE 스플래시 (약 1초 뒤 AI 대화 화면으로 바꾼다)
+// 담당: 공용 — AI 길잡이로 들어가기 전 WON TAKE 스플래시 (약 1.5초 뒤 AI 대화 화면으로 바꾼다)
 import React, { useEffect } from 'react';
 import { useNavigation } from '../navigation/index.jsx';
 import RobotIcon from '../components/RobotIcon.jsx';

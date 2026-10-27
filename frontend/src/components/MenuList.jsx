@@ -1,6 +1,7 @@
 // 담당: 공용 — 메뉴 목록과 외부 호출 가능한 강조
 import React, { useEffect } from 'react';
 import { menu } from '../data/menu.js';
+import { CATEGORY_EMOJI, menuEmoji } from '../data/emoji.js';
 import { useNavigation } from '../navigation/index.jsx';
 let pending = null,
   openMenu = null,
@@ -41,7 +42,9 @@ export default function MenuList({ query = '' }) {
     <div className="menu-groups">
       {[...new Set(filtered.map((item) => item.category))].map((category) => (
         <section key={category} data-category={category}>
-          <h2>{category}</h2>
+          <h2>
+            <span className="emoji" aria-hidden="true">{CATEGORY_EMOJI[category]}</span> {category}
+          </h2>
           {filtered
             .filter((item) => item.category === category)
             .map((item) => (
@@ -52,8 +55,11 @@ export default function MenuList({ query = '' }) {
                 data-track-id={item.id}
                 onClick={() => navigate(item.screenId, { menuId: item.id })}
               >
-                {item.name}
-                <span aria-hidden="true">›</span>
+                <span className="menu-row-name">
+                  <span className="menu-row-emoji emoji" aria-hidden="true">{menuEmoji(item.id)}</span>
+                  {item.name}
+                </span>
+                <span className="menu-row-arrow" aria-hidden="true">›</span>
               </button>
             ))}
         </section>

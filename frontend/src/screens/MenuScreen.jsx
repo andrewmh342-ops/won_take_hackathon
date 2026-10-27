@@ -7,14 +7,7 @@ import BackButton from '../layout/BackButton.jsx';
 import { categories } from '../data/menu.js';
 import { setDemoProfile } from '../api/client.js';
 
-const CATEGORY_ICONS = {
-  '이체/출금': '↗',
-  '계좌조회/관리': '▤',
-  '인증/보안': '◇',
-  '증명서/서류': '▧',
-  환전: '↔',
-  카드: '▭',
-};
+import { CATEGORY_EMOJI } from '../data/emoji.js';
 
 export default function MenuScreen() {
   const { navigate, params } = useNavigation();
@@ -63,7 +56,7 @@ export default function MenuScreen() {
             onClick={() => jumpTo(category)}
             data-track-id={`menu-category-${category}`}
           >
-            <span>{CATEGORY_ICONS[category] ?? '·'}</span>
+            <span className="emoji" aria-hidden="true">{CATEGORY_EMOJI[category] ?? '·'}</span>
             {category}
           </button>
         ))}

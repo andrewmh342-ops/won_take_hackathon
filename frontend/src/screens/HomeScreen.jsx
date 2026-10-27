@@ -6,17 +6,18 @@ import RobotIcon from '../components/RobotIcon.jsx';
 import { useAuth, logout } from '../session/auth.js';
 import { useAccounts } from '../data/useAccounts.js';
 import AccountStatus from '../components/AccountStatus.jsx';
+import { menuEmoji, ALL_MENU_EMOJI, AI_GUIDE_EMOJI } from '../data/emoji.js';
 
-// [이름, 화면, 아이콘, 메뉴 id]. AI 길잡이는 스플래시를 거쳐 대화로 간다.
+// [이름, 화면, 이모지, 메뉴 id]. 메뉴 이모지는 전체 메뉴와 같은 것을 쓴다(data/emoji.js). WON TAKE는 스플래시를 거쳐 대화로 간다.
 const shortcuts = [
-  ['계좌조회', 'account', '▤', 'all-accounts'],
-  ['계좌이체', 'transfer', '↗', 'instant-transfer'],
-  ['전체메뉴', 'menu', '☷'],
-  ['AI 길잡이', 'splash', null],
-  ['해외송금', 'transfer', '◎', 'overseas-remittance'],
-  ['환전', 'exchange', '↔', 'exchange-apply'],
-  ['증명서', 'certificate', '▧', 'balance-certificate'],
-  ['인증센터', 'security', '◇', 'auth-center'],
+  ['계좌조회', 'account', menuEmoji('all-accounts'), 'all-accounts'],
+  ['계좌이체', 'transfer', menuEmoji('instant-transfer'), 'instant-transfer'],
+  ['전체메뉴', 'menu', ALL_MENU_EMOJI],
+  ['WON TAKE', 'splash', AI_GUIDE_EMOJI],
+  ['해외송금', 'transfer', menuEmoji('overseas-remittance'), 'overseas-remittance'],
+  ['환전', 'exchange', menuEmoji('exchange-apply'), 'exchange-apply'],
+  ['증명서', 'certificate', menuEmoji('balance-certificate'), 'balance-certificate'],
+  ['인증센터', 'security', menuEmoji('auth-center'), 'auth-center'],
 ];
 
 export default function HomeScreen() {
@@ -83,9 +84,7 @@ export default function HomeScreen() {
               data-track-id={`quick-${screen}-${label}`}
               onClick={() => navigate(screen, menuId ? { menuId } : {})}
             >
-              <span className={`shortcut-icon${icon ? '' : ' robot'}`}>
-                {icon ?? <RobotIcon size={24} />}
-              </span>
+              <span className="shortcut-icon emoji" aria-hidden="true">{icon}</span>
               <span>{label}</span>
             </button>
           ))}
@@ -118,7 +117,7 @@ export default function HomeScreen() {
         </div>
         <div className="benefit-list">
           <button data-track-id="home-benefit-fx" onClick={() => navigate('fx-rate', { menuId: 'exchange-rate' })}>
-            <span className="benefit-dot">$</span>
+            <span className="benefit-dot emoji" aria-hidden="true">{menuEmoji('exchange-rate')}</span>
             <span>
               <strong>환율 확인하고 환전하기</strong>
               <small>여행 전 가상 환율 보기</small>
@@ -128,7 +127,7 @@ export default function HomeScreen() {
             data-track-id="home-benefit-overseas"
             onClick={() => navigate('transfer', { menuId: 'overseas-remittance' })}
           >
-            <span className="benefit-dot">◎</span>
+            <span className="benefit-dot emoji" aria-hidden="true">{menuEmoji('overseas-remittance')}</span>
             <span>
               <strong>해외송금 한 번에</strong>
               <small>가족에게 보내는 해외송금</small>

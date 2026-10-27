@@ -2996,3 +2996,80 @@ input::placeholder {
 .account-status .secondary {
   margin-top: 8px;
 }
+
+/* 이모지: 폰트 파일 없이 기기 기본 컬러 이모지로 보여 준다 (data/emoji.js) */
+.emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  font-weight: 400;
+  line-height: 1;
+}
+.shortcut-icon.emoji {
+  font-size: 25px;
+  background: var(--primary-soft);
+  transition: transform 0.15s ease;
+}
+.shortcut-grid button:hover .shortcut-icon.emoji {
+  transform: translateY(-2px);
+}
+.benefit-dot.emoji {
+  font-size: 20px;
+  background: var(--primary-soft);
+}
+.menu-shortcuts span.emoji {
+  font-size: 24px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--primary-soft);
+}
+.menu-groups h2 .emoji {
+  font-size: 15px;
+  margin-right: 2px;
+}
+.menu-row .menu-row-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  font-size: 16px;
+}
+.menu-row .menu-row-emoji {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+}
+.menu-row:hover .menu-row-emoji {
+  background: var(--surface);
+}
+.bottom-tabs button > .tab-emoji {
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 400;
+}
+.bottom-tabs button:disabled > .tab-emoji {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.bottom-tabs button:disabled {
+  cursor: default;
+}
+.bottom-tabs .active > .tab-emoji {
+  background: var(--primary-soft);
+  border-radius: 12px;
+  padding: 3px 12px;
+}
+/* 분류 6개를 한 줄에 (카드 분류가 혼자 줄바꿈되지 않게) */
+.menu-shortcuts {
+  grid-template-columns: repeat(6, 1fr);
+}
+.menu-shortcuts span.emoji {
+  width: 42px;
+  height: 42px;
+  font-size: 22px;
+}
