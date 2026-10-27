@@ -10,6 +10,7 @@ import { useNavigation } from '../navigation/index.jsx';
 import { openReplyMenu, claimInitialQuestion, menuReplyContent } from '../chat/menuNavigation.js';
 import MenuReply from '../chat/MenuReply.jsx';
 import PlanReply from '../plan/PlanReply.jsx';
+import { helpChoices, markHelpUsed } from '../chat/helpChoices.js';
 
 const responseText = {
   NOT_FOUND: '말씀하신 내용을 찾지 못했어요. 다른 표현으로 다시 물어봐 주세요.',
@@ -44,6 +45,8 @@ export default function ChatScreen() {
   const mounted = useRef(true);
   const voicePending = useRef(false);
   const requestPending = useRef(false);
+  // 작업 39: 말풍선 시작 카드는 첫 질문을 보내면 숨긴다.
+  const [helpUsed, setHelpUsed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -64,6 +67,8 @@ export default function ChatScreen() {
       if (!text || busy || !historyReady || requestPending.current) return;
 
       requestPending.current = true;
+      setHelpUsed(true);
+      markHelpUsed(params);
       setBusy(true);
       setError('');
       setDraft('');
@@ -218,6 +223,7 @@ export default function ChatScreen() {
   }
 
   const suggestions = Array.isArray(params.suggestions) ? params.suggestions.slice(0, 3) : [];
+  const help = helpChoices(params, helpUsed);
   const isRecording = micState === 'recording';
   const inputDisabled = !historyReady || busy || ['starting', 'recording', 'stopping', 'transcribing'].includes(micState);
   // 상담 버튼은 항상 쓸 수 있다. AI가 권하거나 찾지 못함이 연속 2번이면 강조만 한다(SPEC R3).
@@ -230,15 +236,28 @@ export default function ChatScreen() {
         <strong>WON테이크 상담</strong>
       </header>
       {messages.length === 0 && <p className="chat-intro">막힌 상황을 편하게 말씀해 주세요.<br />예: 카드를 잃어버렸어요</p>}
-      {params.helpQuestion && (
-        <div className="suggestion-list">
-          <p><strong>먼저 제안한 도움</strong></p>
-          <p>{params.helpQuestion}</p>
-          <p>궁금한 점을 짧게 적거나 마이크로 말씀해 주세요.</p>
-          <button type="button" disabled={inputDisabled} onClick={() => send('방금 제안한 내용으로 안내해 줘')}>
-            제안한 내용으로 안내받기
+      {/* 작업 39: 말풍선에서 왔으면 역질문 한 줄과 예상 질문 큰 버튼. 하나를 누르거나 직접 물으면 사라진다. */}
+      {help && (
+        <section className="help-start" aria-label="먼저 제안한 도움">
+          <p className="help-start-title">{help.title}</p>
+          <div className="help-start-list">
+            {help.questions.map((question, i) => (
+              <button key={question} type="button" className="help-start-q" data-track-id={`help-q-${i + 1}`} disabled={inputDisabled}
+                onClick={() => send(question)}>
+                {question}<span aria-hidden="true">›</span>
+              </button>
+            ))}
+            {help.fallback && (
+              <button type="button" className="help-start-q" data-track-id="help-q-default" disabled={inputDisabled}
+                onClick={() => send('방금 제안한 내용으로 안내해 줘')}>
+                제안한 내용으로 안내받기<span aria-hidden="true">›</span>
+              </button>
+            )}
+          </div>
+          <button type="button" className="help-start-self" data-track-id="help-self" onClick={() => document.getElementById('chat-draft')?.focus()}>
+            직접 말할게요
           </button>
-        </div>
+        </section>
       )}
 
       {messages.length === 0 && (suggestions.length > 0 || params.question) && (

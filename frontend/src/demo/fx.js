@@ -10,3 +10,6 @@ export function toKrw(amount, rate) {
 export const overLimit = (krw) => krw > EXCHANGE_LIMIT_KRW;
 
 export const won = (value) => `${Number(value).toLocaleString('ko-KR')}원`;
+
+/** 작업 37: 플랜에서 들어온 환율 화면은 [다음 단계로], 메뉴로 직접 들어오면 [환전 신청하기]. */
+export const rateScreenAction = (params) => (params?.planId ? 'NEXT' : 'EXCHANGE');

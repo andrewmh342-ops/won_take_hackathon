@@ -153,7 +153,8 @@ public class ProfileStore {
                 c.autoPayments.stream().filter(a -> "ACTIVE".equals(a.status)).map(a -> a.category).toList(),
                 c.usable(), c.reissued ? "REQUESTED" : "NONE")).toList();
             return new CustomerShape(cards, s.hasTravelCard, List.copyOf(rates.keySet()), s.hasUsableTravelCard(),
-                new TripShape(s.tripCountry, daysUntilDeparture(s)));
+                new TripShape(s.tripCountry, daysUntilDeparture(s)),
+                s.exchangeRequests.stream().map(r -> r.currency).distinct().toList());
         }
     }
 

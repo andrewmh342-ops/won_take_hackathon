@@ -41,6 +41,13 @@ public class PlanService {
     public static final String OUT_OF_SCOPE_MESSAGE = "한 번에 맡기기는 이체와 내 계좌로 옮기기만 준비해요. 누구에게 얼마를 보낼지 말씀해 주세요.";
     public static final String NO_TASK_MESSAGE = "준비할 이체를 찾지 못했어요. 누구에게 얼마를 보낼지 말씀해 주세요.";
     public static final String NEEDS_AMOUNT_MESSAGE = "이체 금액이 입력되지 않은 항목이 있습니다. 얼마를 이체하시겠어요?";
+    public static final String FROM_OWN_MESSAGE = "적금 같은 내 계좌에서 꺼내는 이체는 준비하지 않아요. 적금은 보통 해지나 일부 해지를 해야 꺼낼 수 있어요.";
+    /**
+     * 내 계좌에서 꺼낼 때 쓰는 말. 계좌 이름 뒤 "에서"만으로는 조회("적금에서 이자 얼마")와 구분되지 않아 함께 본다.
+     * "이체", "넣", "인출"만으로는 "이체 내역", "자동이체", "넣은 돈", "인출 내역" 같은 조회·설정 질문까지 잡아 뺐다. 그런 표현은 AI 메뉴 안내에 두고,
+     * 놓친 꺼내기 요청은 plan-system.txt가 적금을 받는 곳으로 고르지 않게 막는다.
+     */
+    private static final java.util.regex.Pattern MOVE_WORDS = java.util.regex.Pattern.compile("빼|꺼내|인출해|옮겨|옮기|보내|송금");
     private final FinanceBook book;
     private final AiClient ai;
     private final DemoStore store;
@@ -50,6 +57,8 @@ public class PlanService {
     private final Map<String, Integer> failures = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<AiClient.Payee> payees;
     private final com.wontake.assist.Redactor redactor;
+    /** "적금에서", "적금 통장에서", "적금계좌에서"처럼 출금 계좌가 아닌 내 계좌를 돈이 나오는 곳으로 말한 부분. */
+    private final java.util.regex.Pattern ownSource;
 
     /** password는 시연용 가상 간편 비밀번호다(app.plan.password). 비어 있으면 아무 값이나 통과하지 않게 서버를 띄우지 않는다. */
     public PlanService(FinanceBook book, AiClient ai, DemoStore store, Balances balances, @Value("${app.plan.password}") String password) {
@@ -64,7 +73,25 @@ public class PlanService {
         this.password = password.getBytes(StandardCharsets.UTF_8);
         // AI에는 이름과 별칭만 보낸다. 계좌번호와 이체 이력은 서버에만 둔다.
         payees = book.accounts().stream().map(a -> new AiClient.Payee(a.name(), a.kind(), a.aliases())).toList();
+        // 긴 이름부터 맞춰 "차곡차곡 적금"이 "적금"보다 먼저 잡히게 한다. 결과는 같지만 정규식이 덜 되돌아간다.
+        var names = book.accounts().stream().filter(a -> a.kind().equals("OWN"))
+            .flatMap(a -> java.util.stream.Stream.concat(java.util.stream.Stream.of(a.name()), a.aliases().stream()))
+            .distinct().sorted(Comparator.comparingInt(String::length).reversed()).map(java.util.regex.Pattern::quote).toList();
+        ownSource = java.util.regex.Pattern.compile("(?:" + String.join("|", names) + ")\\s*(?:통장|계좌)?\\s*에서");
     }
+
+    /**
+     * 출금 계좌가 아닌 내 계좌(적금)에서 돈을 꺼내 달라는 요청인지 본다(버그1, 2026-10-27 사용자 결정: 카드 없이 안내).
+     * 출금은 생활통장 하나뿐이고 작업에는 받는 곳만 있어, 이런 요청을 카드로 만들면 생활통장 → 적금 반대 방향이 된다.
+     * AI 분류에 맡기지 않고 서버 규칙으로 막는다. 규칙이 놓친 표현은 plan-system.txt가 적금을 받는 곳으로 고르지 않게 한다.
+     * 방법을 묻는 질문("적금에서 돈 빼려면 어떻게 해?")도 같은 안내를 받는다. 카탈로그에 적금 해지 메뉴가 없어서다.
+     * 세션 사용량은 다른 질문처럼 1번 센다. 프론트 모의 모드(mock.js)에는 넣지 않는다(2026-10-27 사용자 결정).
+     */
+    public boolean fromOwn(String request) {
+        return request != null && ownSource.matcher(request).find() && MOVE_WORDS.matcher(request).find();
+    }
+    /** fromOwn이면 채팅이 AI 대신 이 안내를 돌려준다. 작업이 없어 승인할 것도, 세션에 남길 것도 없다. */
+    public Plan fromOwnPlan(DemoStore.Session s) { return empty(s, "FROM_OWN", FROM_OWN_MESSAGE); }
 
     /** 채팅의 세션 잠금(synchronized(s)) 안에서 부른다. 작업이 있는 목록은 세션에 저장한다. */
     public Plan plan(DemoStore.Session s, String request) {

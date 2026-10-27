@@ -3115,4 +3115,49 @@ input::placeholder {
   .ai-typing i {
     opacity: 0.6;
   }
+
+/* 작업 39: 말풍선에서 열린 대화의 시작 카드 (역질문 + 예상 질문 큰 버튼) */
+.help-start {
+  margin: 16px 0 8px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 6px 18px #20365a12;
+}
+.help-start-title {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+.help-start-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.help-start-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+}
+.help-start-q span {
+  font-size: 20px;
+}
+.help-start-self {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
 }

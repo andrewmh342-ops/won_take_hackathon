@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** SPEC R5 목표 중심 판단: 블록 완료와 목표 달성을 분리한다. 고객 A: card-1 신용(해외결제 켜짐), card-2 트래블(꺼짐), card-3 체크(켜짐). */
+/** SPEC R5 목표 중심 판단: 블록 완료와 목표 달성을 분리한다. 고객 A: card-1 신용, card-2 트래블, card-3 체크(작업 34부터 모두 해외결제 꺼짐으로 시작). */
 class GoalCheckTest {
     private final DemoStore store = new DemoStore();
     private final ProfileStore profiles = new ProfileStore(store);
@@ -23,6 +23,7 @@ class GoalCheckTest {
     }
 
     @Test void 해외결제가_켜진_사용_중인_다른_카드가_있으면_확보() {
+        a().card("card-1").overseasPayment = true; // 작업 34: 기본값이 꺼짐이라 켠 상태를 만든다
         var s = payment(Set.of("card-2"));
         assertEquals("SECURED", s.status());
         assertTrue(s.detail().contains("4821"));

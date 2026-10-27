@@ -135,4 +135,50 @@ class BehaviorServiceTest {
         assertNull(failed.analyze("u","s",id));
         assertNull(failed.context("u","s",id));
     }
+
+    // 작업 39: 역질문과 함께 예상 질문 최대 3개
+    BehaviorService with(List<String> questions) {
+        return new BehaviorService(store, catalog, new FakeAiClient() {
+            @Override public ProactiveSuggestion suggest(BehaviorContext c) {
+                return new ProactiveSuggestion(true, "이체나 송금 메뉴를 찾고 계신가요?", List.of("instant-transfer"), questions);
+            }
+        }, clock);
+    }
+    Behavior2 flowOn(BehaviorService service) {
+        var a = catalog.find("instant-transfer"); var b = catalog.find("overseas-remittance");
+        service.record("u", "s", "SCREEN_ENTER", a.screenId(), a.id(), null); clock.now += 1000;
+        service.record("u", "s", "SCREEN_ENTER", "menu", null, null);
+        service.record("u", "s", "SCREEN_ENTER", b.screenId(), b.id(), null); clock.now += 1000;
+        return new Behavior2(service, service.record("u", "s", "SCREEN_ENTER", "menu", null, null));
+    }
+    record Behavior2(BehaviorService service, String id) {}
+
+    @Test void 예상_질문은_앞의_3개만_쓴다() {
+        store.consent("u", true);
+        var f = flowOn(with(List.of("한도는 얼마예요?", "해외로 보내려면요?", "예약은 어떻게 해요?", "수수료가 있나요?")));
+        var bubble = f.service().analyze("u", "s", f.id());
+        assertEquals(List.of("한도는 얼마예요?", "해외로 보내려면요?", "예약은 어떻게 해요?"), bubble.questions());
+    }
+
+    @Test void 빈_질문과_60자_초과와_중복은_버린다() {
+        store.consent("u", true);
+        var f = flowOn(with(Arrays.asList("  ", "가".repeat(61), " 한도는 얼마예요? ", "한도는 얼마예요?", null, "해외로 보내려면요?")));
+        assertEquals(List.of("한도는 얼마예요?", "해외로 보내려면요?"), f.service().analyze("u", "s", f.id()).questions());
+    }
+
+    @Test void 예상_질문이_없어도_역질문_말풍선은_뜬다() {
+        store.consent("u", true);
+        var f = flowOn(with(List.of()));
+        var bubble = f.service().analyze("u", "s", f.id());
+        assertNotNull(bubble);
+        assertEquals(List.of(), bubble.questions());
+    }
+
+    @Test void 모의_AI도_방문한_분류의_예상_질문_3개를_만든다() {
+        store.consent("u", true);
+        var f = flowOn(new BehaviorService(store, catalog, new FakeAiClient(), clock));
+        var questions = f.service().analyze("u", "s", f.id()).questions();
+        assertEquals(3, questions.size());
+        assertTrue(questions.stream().allMatch(q -> !q.isBlank() && q.length() <= 60));
+    }
 }

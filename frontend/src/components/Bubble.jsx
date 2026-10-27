@@ -22,7 +22,7 @@ export default function Bubble() {
     }
   }
   const open = () => navigate('chat', bubble.contextId
-    ? { contextId: bubble.contextId, helpQuestion: bubble.question }
+    ? { contextId: bubble.contextId, helpQuestion: bubble.question, helpQuestions: bubble.questions ?? [] }
     : { suggestions: (bubble.suggestions ?? []).slice(0, MAX_SUGGESTIONS) });
   return (
     <aside className="help-bubble" aria-label="AI 도움 제안">

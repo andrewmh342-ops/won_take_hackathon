@@ -56,6 +56,14 @@ class MenuIntentContractTest {
         assertTrue(prompt.contains("\"카드 분실\""), "짧은 사건 낱말 예시");
         assertTrue(prompt.contains("메뉴·화면의 위치나 사용법을 물을 때만"), "메뉴 하나로 답하는 조건");
     }
+    @Test void 이전_대화에서_끝낸_사건은_새_플랜에_합치지_않도록_지시한다() {
+        // 버그2: 카드 분실을 끝낸 뒤 "일본 여행"을 말하면 "일본 여행 · 카드 분실"이 나왔다. 합치는 건 여행 중 분실(여행 → 분실)일 때뿐이다.
+        call();
+        var prompt = json.readTree(request.get()).path("system").asText();
+        assertTrue(prompt.contains("이전 대화에서 이미 다룬 사건"));
+        assertTrue(prompt.contains("장애물 판단에만 쓴다"));
+        assertTrue(prompt.contains("두 사건을 함께 다룬다"));
+    }
     @Test void 확인_여부가_누락된_구형_응답은_자동_이동을_허용하지_않는다() {
         answer.remove("needsConfirmation");
         assertTrue(call().needsConfirmation());

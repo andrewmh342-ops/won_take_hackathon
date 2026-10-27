@@ -215,6 +215,19 @@ class ClaudeAiClientTest {
         assertEquals("overseas-remittance",input.at("/visits/1/menuId").asText());
         assertEquals(1000,input.at("/visits/0/dwellMillis").asLong());
     }
+    // 작업 39: 역질문 응답에 예상 질문(questions)을 받는다
+    @Test void proactiveSchemaAsksForLikelyQuestionsAndParsesThem() {
+        var mapper=new JsonMapper();
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("shouldOffer",true,"question","국내로 보내세요, 해외로 보내세요?","menuIds",List.of("instant-transfer"),
+                "questions",List.of("이체 한도는 얼마예요?","해외로 보내려면 어떻게 해요?","예약 이체는 어떻게 해요?")))))));
+        var visits=List.of(new AiClient.Visit("instant-transfer","이체/출금","2026-10-27T00:00:00Z","2026-10-27T00:00:01Z",1000));
+        var result=client().suggest(new AiClient.BehaviorContext(visits,context().recentEvents(),context().history(),context().menus()));
+        assertEquals(3,result.questions().size());
+        var request=mapper.readTree(body.get());
+        assertTrue(request.at("/output_config/format/schema/properties/questions").isObject());
+        assertTrue(request.path("system").asText().contains("예상 질문"));
+    }
     String planResponse(String text) { return new JsonMapper().writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",text)))); }
     AiClient.PlanContext planContext() { return new AiClient.PlanContext("월세 내고 엄마한테 30만원",List.of(new AiClient.Payee("엄마","CONTACT",List.of("엄마","어머니")))); }
     @Test void planUsesItsOwnPromptAndReadsNullAmountAsUnsaid() {
@@ -242,6 +255,25 @@ class ClaudeAiClientTest {
         assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().plan(planContext())).code);
         response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amountRef\":\"amount-2\"}]}");
         assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().fill(fillContext())).code);
+    }
+    /** Claude는 type 배열 ["string","null"]과 문자열 enum을 같이 쓰면 400을 준다(2026-10-27 Haiku 5.5 실측). anyOf로 나눠야 한다. */
+    @Test void 금액_참조_스키마는_문자열_enum과_null을_anyOf로_나눈다() {
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[]}");
+        client().plan(planContext());
+        var amount=new JsonMapper().readTree(body.get()).at("/output_config/format/schema/properties/tasks/items/properties/amountRef");
+        assertFalse(amount.has("type"));
+        assertEquals("string",amount.at("/anyOf/0/type").asText());
+        assertEquals("amount-1",amount.at("/anyOf/0/enum/0").asText());
+        assertEquals(1,amount.at("/anyOf/0/enum").size());
+        assertEquals("null",amount.at("/anyOf/1/type").asText());
+    }
+    @Test void 금액이_없는_요청의_금액_참조는_null만_허용한다() {
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[]}");
+        client().plan(new AiClient.PlanContext("엄마한테 보내줘",List.of()));
+        var amount=new JsonMapper().readTree(body.get()).at("/output_config/format/schema/properties/tasks/items/properties/amountRef");
+        assertEquals("null",amount.path("type").asText());
+        assertFalse(amount.has("enum"));
+        assertFalse(amount.has("anyOf"));
     }
     AiClient.FillContext fillContext() { return new AiClient.FillContext(List.of("집주인"),"65만원이요"); }
     @Test void fillUsesItsOwnPromptAndOnlyAllowsAskedTargets() {

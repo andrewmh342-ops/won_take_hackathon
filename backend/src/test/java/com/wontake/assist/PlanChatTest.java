@@ -25,6 +25,7 @@ class PlanChatTest {
     @Test void 같은_여행_질문도_고객_A와_B는_다르게_조립된다() {
         var a = chat(new FakeAiClient()).chat("a", "sa", "다음 달 일본 여행 가는데 준비할 거 알려줘", "TEXT");
         profiles.select("b", "sb", "B");
+        profiles.state("b", "sb").card("card-1").overseasPayment = true; // 작업 34: B는 해외결제를 이미 켜 둔 고객으로 둔다
         var b = chat(new FakeAiClient()).chat("b", "sb", "다음 달 일본 여행 가는데 준비할 거 알려줘", "TEXT");
         assertEquals("PLAN", a.type());
         assertTrue(ids(a).contains("overseas-payment-check"));
@@ -41,7 +42,8 @@ class PlanChatTest {
         assertEquals("card-2", p.blocks.getFirst().targetRef);
         assertTrue(ids(r).contains("ask-info"));
         assertTrue(ids(r).indexOf("ask-info") > ids(r).indexOf("card-lost-report"));
-        assertTrue(p.blocks.stream().anyMatch(b -> b.blockId.equals("alt-payment-check") && b.targetRef.equals("card-1")));
+        // 작업 34·36: card-1은 해외결제 꺼짐이라 대체 결제 확인이 해외결제 설정 하나로 합쳐진다
+        assertTrue(p.blocks.stream().anyMatch(b -> Set.of("alt-payment-check", "overseas-payment-check").contains(b.blockId) && b.targetRef.equals("card-1")));
         assertFalse(ids(r).contains("simple-pay-unlink"));
         assertTrue(p.goalStatus.stream().anyMatch(g -> g.type().equals("PAYMENT_ABROAD")));
         assertTrue(p.blocks.stream().filter(b -> b.blockId.equals("travel-insurance-guide")).allMatch(b -> b.priority.equals("OPTIONAL")));
@@ -108,6 +110,7 @@ class PlanChatTest {
     @Test void 출국일을_입력하면_AI가_다시_판단하고_끝낸_업무는_유지한다() {
         var seen = new ArrayList<AiClient.Context>();
         var service = chat(c -> { seen.add(c); return new FakeAiClient().answer(c); });
+        profiles.state("a", "sa").card("card-1").overseasPayment = true; // 작업 34: 해외결제가 켜진 다른 카드가 있는 경우
         var p = (Plan) service.chat("a", "sa", "일본 가려는데, 트래블카드 잃어버렸어", "TEXT").plan();
         service.confirmCards("a", "sa", p.planId, List.of("card-2"));
         plans.execute("a", "sa", p.planId, 0, Map.of()); // 분실신고(card-2)
@@ -183,6 +186,62 @@ class PlanChatTest {
         String longer = "전체계좌조회에서 볼 수 있어요. " + "라".repeat(80);
         var r = chat(c -> new AiClient.Answer(longer, "", List.of("all-accounts"), List.of())).chat("a", "sa", "계좌 보여줘", "TEXT");
         assertEquals(longer, r.reply());
+    }
+
+    // 작업 35: 2막의 AI는 1막(여행 준비)에서 알게 된 정보와 한 일을 받는다
+    @Test void 두번째_질문의_AI_입력에_이전_플랜과_여행_정보가_있다() {
+        var seen = new ArrayList<AiClient.Context>();
+        var service = chat(c -> { seen.add(c); return new FakeAiClient().answer(c); });
+        var travel = (Plan) service.chat("a", "sa", "나 일본 여행 가", "TEXT").plan();
+        int over = travel.blocks.stream().filter(b -> b.blockId.equals("overseas-payment-check")).findFirst().orElseThrow().index;
+        profiles.state("a", "sa").card(travel.blocks.get(over).targetRef).overseasPayment = true; // 해외결제 켜기 화면에서 처리
+        plans.refreshAll(profiles.state("a", "sa"));
+        service.chat("a", "sa", "나 카드 잃어버렸어", "TEXT");
+        var second = seen.getLast();
+        assertEquals("일본", second.customer().trip().country());
+        assertFalse(second.recentPlans().isEmpty());
+        assertTrue(second.recentPlans().getFirst().done().stream().anyMatch(d -> d.startsWith("overseas-payment-check@")));
+    }
+
+    // 작업 37: 시연 시나리오 1막(여행 준비) → 2막(카드 분실), 모의 AI로 연결 확인
+    private List<String> keys(Plan p) { return p.blocks.stream().map(b -> b.blockId + (b.targetRef.isEmpty() ? "" : "@" + b.targetRef)).toList(); }
+    private ChatService prepareTrip() {
+        var service = chat(new FakeAiClient());
+        var trip = (Plan) service.chat("a", "sa", "나 일본 여행 가", "TEXT").plan();
+        var k = keys(trip);
+        assertEquals("ask-info", k.getFirst());                       // 출국일을 먼저 묻는다
+        assertTrue(k.contains("travel-card-check"));
+        assertEquals(List.of("overseas-payment-check@card-2"), k.stream().filter(x -> x.startsWith("overseas-payment-check")).toList()); // 한 장만
+        assertTrue(k.contains("fx-exchange-apply") && !k.contains("fx-rate-check"));                  // 환율은 환전에 합침
+        assertEquals("REQUIRED", trip.blocks.get(k.indexOf("fx-exchange-apply")).priority);
+        service.answer("a", "sa", trip.planId, trip.blocks.getFirst().index, profiles.today().plusDays(3).toString());
+        var st = profiles.state("a", "sa");
+        st.card("card-2").overseasPayment = true;                    // 해외결제 켜기 화면에서 처리
+        st.exchangeRequests.add(new ProfileStore.ExchangeRequest("ex-1", "JPY", 30000, 271500, "지점", profiles.today().plusDays(2).toString(), "계좌"));
+        plans.refreshAll(st);
+        return service;
+    }
+
+    @Test void 시연_2막_트래블카드를_잃어버리면_남은_카드_한_장을_켠다() {
+        var service = prepareTrip();
+        var loss = (Plan) service.chat("a", "sa", "나 카드 잃어버렸어", "TEXT").plan();
+        var after = service.confirmCards("a", "sa", loss.planId, List.of("card-2"));
+        var k = keys(after);
+        assertTrue(k.containsAll(List.of("card-lost-report@card-2", "card-reissue@card-2")));
+        assertEquals(List.of("overseas-payment-check@card-1"), k.stream().filter(x -> x.startsWith("overseas-payment-check") || x.startsWith("alt-payment-check")).toList());
+        assertEquals("REQUIRED", after.blocks.get(k.indexOf("overseas-payment-check@card-1")).priority);
+        assertFalse(k.contains("ask-info"));            // 나라·출국일은 1막에서 알았다
+        assertFalse(k.contains("fx-exchange-apply"));   // 엔화는 1막에서 신청했다
+    }
+
+    @Test void 시연_2막_다른_카드를_잃어버리면_해외결제_단계가_없다() {
+        var service = prepareTrip();
+        var loss = (Plan) service.chat("a", "sa", "나 카드 잃어버렸어", "TEXT").plan();
+        var after = service.confirmCards("a", "sa", loss.planId, List.of("card-1"));
+        var k = keys(after);
+        assertTrue(k.contains("card-lost-report@card-1"));
+        assertTrue(after.blocks.stream().filter(b -> b.blockId.equals("overseas-payment-check")).allMatch(b -> b.priority.equals("OPTIONAL")));
+        assertFalse(k.contains("ask-info"));
     }
 
     @Test void 플랜은_대화_기록에_남아_다시_그릴_수_있다() {

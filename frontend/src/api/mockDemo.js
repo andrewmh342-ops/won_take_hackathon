@@ -3,7 +3,7 @@ import { toKrw } from '../demo/fx.js';
 
 const card = (ref, name, kind, last4, extra) => ({
   ref, name, kind, last4, display: `${name} 끝자리 ${last4}(가상)`, travel: false, status: 'ACTIVE', usable: true, reissued: false,
-  simplePay: false, simplePayName: '', overseasPayment: true, subscriptions: [], ...extra,
+  simplePay: false, simplePayName: '', overseasPayment: false, subscriptions: [], ...extra,
 });
 const sub = (id, category, merchant, amount, billingDay) => ({ id, category, merchant, amount, billingDay, status: 'ACTIVE', movedTo: '', movedFrom: '' });
 const today = new Date().toISOString().slice(0, 10);

@@ -20,7 +20,7 @@
     "A": {
       "label": "시연 고객 A",
       "cards": [
-        { "ref": "card-1", "name": "우리 신용카드", "kind": "신용", "last4": "4821", "travel": false, "simplePay": "삼성페이", "overseasPayment": true,
+        { "ref": "card-1", "name": "우리 신용카드", "kind": "신용", "last4": "4821", "travel": false, "simplePay": "삼성페이", "overseasPayment": false,
           "autoPayments": [
             { "id": "ap-1", "category": "OTT", "merchant": "넷플릭스", "amount": 17000, "billingDay": 5 },
             { "id": "ap-2", "category": "OTT", "merchant": "유튜브 프리미엄", "amount": 14900, "billingDay": 12 },
@@ -28,7 +28,7 @@
           ] },
         { "ref": "card-2", "name": "우리 트래블 체크카드", "kind": "체크", "last4": "7310", "travel": true, "simplePay": "", "overseasPayment": false,
           "autoPayments": [] },
-        { "ref": "card-3", "name": "우리 체크카드", "kind": "체크", "last4": "3356", "travel": false, "simplePay": "카카오페이", "overseasPayment": true,
+        { "ref": "card-3", "name": "우리 체크카드", "kind": "체크", "last4": "3356", "travel": false, "simplePay": "카카오페이", "overseasPayment": false,
           "autoPayments": [
             { "id": "ap-4", "category": "음악", "merchant": "멜론", "amount": 10900, "billingDay": 1 },
             { "id": "ap-5", "category": "쇼핑 멤버십", "merchant": "쿠팡 와우", "amount": 7890, "billingDay": 18 }
@@ -38,7 +38,7 @@
     "B": {
       "label": "시연 고객 B",
       "cards": [
-        { "ref": "card-1", "name": "우리 체크카드", "kind": "체크", "last4": "2593", "travel": false, "simplePay": "삼성페이", "overseasPayment": true,
+        { "ref": "card-1", "name": "우리 체크카드", "kind": "체크", "last4": "2593", "travel": false, "simplePay": "삼성페이", "overseasPayment": false,
           "autoPayments": [
             { "id": "ap-1", "category": "통신", "merchant": "KT", "amount": 49000, "billingDay": 20 },
             { "id": "ap-2", "category": "OTT", "merchant": "티빙", "amount": 13500, "billingDay": 9 }
@@ -55,7 +55,7 @@
           "last4": "6408",
           "travel": true,
           "simplePay": "",
-          "overseasPayment": true,
+          "overseasPayment": false,
           "autoPayments": []
         }
       ]

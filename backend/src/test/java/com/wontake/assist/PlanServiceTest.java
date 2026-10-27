@@ -124,6 +124,7 @@ class PlanServiceTest {
     }
 
     @Test void 필수_목표가_모두_확보되면_완료다() {
+        profiles.state("a", "sa").card("card-1").overseasPayment = true; // 작업 34: 기본값이 꺼짐이라 켠 상태를 만든다
         var p = build(goals(List.of(new AiGoal("CARD_PROTECTION", "보호", true), new AiGoal("PAYMENT_ABROAD", "결제", true)), b("card-lost-report", "card-2")));
         run(p, 0, Map.of());
         assertTrue(p.complete); // card-1이 해외결제 켜진 사용 가능 카드
@@ -239,6 +240,7 @@ class PlanServiceTest {
     }
 
     @Test void 해외결제가_켜진_카드는_설정_블록을_버린다() {
+        profiles.state("a", "sa").card("card-1").overseasPayment = true; // 작업 34: 기본값이 꺼짐이라 켠 상태를 만든다
         assertEquals(List.of("overseas-payment-check@card-2"), ids(build(plan(b("overseas-payment-check", "card-1"), b("overseas-payment-check", "card-2")))));
     }
 
@@ -267,8 +269,10 @@ class PlanServiceTest {
 
     @Test void 블록은_12개까지만_둔다() {
         var many = new ArrayList<AiBlock>();
-        for (var c : List.of("JPY", "USD", "EUR", "CNY")) { many.add(fx("fx-rate-check", c)); many.add(fx("fx-exchange-apply", c)); }
-        many.addAll(List.of(b("card-lost-report", "card-1"), b("card-lost-report", "card-2"), b("card-reissue", "card-1"), b("card-reissue", "card-2"), b("travel-insurance-guide", "")));
+        // 작업 36: 같은 통화의 환율·환전은 하나로 합쳐지므로 합쳐지지 않는 블록 13개로 센다
+        for (var c : List.of("JPY", "USD", "EUR", "CNY")) many.add(fx("fx-rate-check", c));
+        for (var r : List.of("card-1", "card-2", "card-3")) { many.add(b("card-lost-report", r)); many.add(b("card-reissue", r)); }
+        many.addAll(List.of(b("simple-pay-unlink", "card-1"), b("travel-card-check", ""), b("travel-insurance-guide", "")));
         assertEquals(13, many.size());
         assertEquals(12, build(new AiPlan(List.of(), many, List.of(), "")).blocks.size());
     }
@@ -337,6 +341,113 @@ class PlanServiceTest {
         assertTrue(forAi.contains("[상담 필요] card-2 충전 잔액 처리"), forAi);
         assertFalse(forAi.contains("7310"));
         assertTrue(String.join("\n", service.progress("a", "sa", true)).contains("7310"));
+    }
+
+    // 작업 35: 여행 정보 기억
+    @Test void 이전_플랜의_통화로_여행_나라를_기억한다() {
+        build(plan(fx("fx-exchange-apply", "JPY")));
+        assertEquals("일본", profiles.state("a", "sa").tripCountry);
+        assertEquals("일본", service.shape("a", "sa").trip().country());
+    }
+
+    @Test void 이미_아는_나라는_다시_묻지_않는다() {
+        build(plan(fx("fx-rate-check", "USD")));
+        var p = build(plan(b("card-lost-report", "card-1"), ask("COUNTRY")));
+        assertTrue(p.blocks.stream().noneMatch(x -> x.blockId.equals("ask-info")));
+        assertTrue(p.skipped.stream().anyMatch(x -> "이미 확인한 정보예요".equals(x.get("reason"))));
+    }
+
+    @Test void 이미_정해진_여행_나라는_다른_통화로_바꾸지_않는다() {
+        profiles.state("a", "sa").tripCountry = "일본";
+        build(plan(fx("fx-rate-check", "USD")));
+        assertEquals("일본", profiles.state("a", "sa").tripCountry);
+    }
+
+    @Test void 환전을_신청한_통화는_AI_입력에_금액_없이_들어간다() {
+        profiles.state("a", "sa").exchangeRequests.add(new ProfileStore.ExchangeRequest("ex-1", "JPY", 30000, 271500, "지점", "2026-11-01", "계좌"));
+        var shape = service.shape("a", "sa");
+        assertEquals(List.of("JPY"), shape.cash());
+        assertFalse(shape.toString().contains("30000"));
+    }
+
+    @Test void 최근_플랜_두_개를_ref로_요약한다() {
+        var first = build(plan(b("card-lost-report", "card-1")));
+        run(first, 0, Map.of());
+        build(plan(fx("fx-rate-check", "JPY")));
+        var third = build(plan(b("travel-card-check", "")));
+        var recent = service.recent("a", "sa", third.planId);
+        assertEquals(2, recent.size());
+        assertTrue(recent.stream().anyMatch(r -> r.done().contains("card-lost-report@card-1")));
+        assertTrue(recent.stream().anyMatch(r -> r.pending().contains("fx-rate-check")));
+        assertFalse(recent.toString().contains("4821")); // 카드 이름·끝자리 없음
+    }
+
+    // 작업 36: 같은 효과의 단계는 하나로, 출국일은 첫 단계로
+    private static AiBlock opt(String id, String ref, String param) { return new AiBlock(id, ref, param, "이유", "OPTIONAL"); }
+    private static String priorityOf(Plan p, String key) {
+        return p.blocks.stream().filter(x -> (x.blockId + (x.targetRef.isEmpty() ? "" : "@" + x.targetRef)).equals(key)).findFirst().orElseThrow().priority;
+    }
+
+    @Test void 같은_통화의_환율_확인은_환전_신청에_합친다() {
+        var p = build(plan(fx("fx-rate-check", "JPY"), opt("fx-exchange-apply", "", "JPY")));
+        assertEquals(List.of("fx-exchange-apply"), ids(p));
+        assertEquals("REQUIRED", p.blocks.getFirst().priority); // 둘 중 높은 쪽
+        assertTrue(p.skipped.stream().anyMatch(x -> "fx-rate-check".equals(x.get("blockId")) && "환전 화면에서 환율을 함께 보여 줘요".equals(x.get("reason"))));
+    }
+
+    @Test void 통화가_다르면_환율과_환전을_둘_다_남긴다() {
+        assertEquals(List.of("fx-rate-check", "fx-exchange-apply"), ids(build(plan(fx("fx-rate-check", "JPY"), fx("fx-exchange-apply", "USD")))));
+    }
+
+    @Test void 해외결제가_꺼진_카드의_대체_확인과_설정은_설정_하나로() {
+        assertEquals(List.of("overseas-payment-check@card-1"), ids(build(plan(b("alt-payment-check", "card-1"), b("overseas-payment-check", "card-1")))));
+    }
+
+    @Test void 해외결제가_켜진_카드의_대체_확인과_설정은_확인_하나로() {
+        profiles.state("a", "sa").card("card-1").overseasPayment = true;
+        assertEquals(List.of("alt-payment-check@card-1"), ids(build(plan(b("alt-payment-check", "card-1"), b("overseas-payment-check", "card-1")))));
+    }
+
+    @Test void 해외결제_설정이_여러_장이면_첫_장만_필수() {
+        var p = build(plan(b("overseas-payment-check", "card-1"), b("overseas-payment-check", "card-3")));
+        assertEquals("REQUIRED", priorityOf(p, "overseas-payment-check@card-1"));
+        assertEquals("OPTIONAL", priorityOf(p, "overseas-payment-check@card-3"));
+    }
+
+    @Test void 해외에서_쓸_카드가_이미_있으면_해외결제_설정은_선택() {
+        profiles.state("a", "sa").card("card-2").overseasPayment = true;
+        var p = build(plan(b("overseas-payment-check", "card-1")));
+        assertEquals("OPTIONAL", priorityOf(p, "overseas-payment-check@card-1"));
+    }
+
+    @Test void 여행_플랜에서_출국일을_모르면_첫_단계로_묻는다() {
+        var p = build(plan(b("travel-card-check", ""), b("overseas-payment-check", "card-2"), ask("DEPARTURE_DATE")));
+        assertEquals("ask-info", p.blocks.getFirst().blockId);
+        var q = build(plan(b("card-lost-report", "card-2"), b("card-reissue", "card-2"), ask("DEPARTURE_DATE")));
+        assertEquals(List.of("card-lost-report@card-2", "ask-info", "card-reissue@card-2"), ids(q)); // 보호 조치 다음
+    }
+
+    // 작업 38: 상담 요약 입력에 고객이 화면에서 답한 여행 정보를 넣는다
+    @Test void 출국일을_답하면_상담_요약_입력에_들어간다() {
+        var p = askPlan();
+        var today = profiles.today();
+        service.answer("a", "sa", p.planId, indexOf(p, "DEPARTURE_DATE"), today.toString());
+        var forAi = service.progress("a", "sa", false);
+        assertTrue(forAi.contains("[고객 정보] 출국일: " + today + "(오늘)"), forAi.toString());
+        assertTrue(forAi.stream().anyMatch(l -> l.startsWith("[완료] 정보 확인") && l.contains("출국일 " + today)), forAi.toString());
+    }
+
+    @Test void 여행_나라와_환전_통화도_상담_요약_입력에_들어간다() {
+        var s = profiles.state("a", "sa");
+        s.tripCountry = "일본";
+        s.tripDepartureDate = profiles.today().plusDays(3);
+        s.exchangeRequests.add(new ProfileStore.ExchangeRequest("ex-1", "JPY", 30000, 271500, "지점", "2026-11-01", "계좌"));
+        build(plan(b("card-lost-report", "card-2")));
+        var forAi = service.progress("a", "sa", false);
+        assertTrue(forAi.contains("[고객 정보] 여행 나라: 일본"), forAi.toString());
+        assertTrue(forAi.contains("[고객 정보] 출국일: " + profiles.today().plusDays(3) + "(3일 뒤)"), forAi.toString());
+        assertTrue(forAi.contains("[고객 정보] 환전 신청: JPY"), forAi.toString());
+        assertFalse(String.join(" ", forAi).contains("30000"));
     }
 
     @Test void 다른_세션의_플랜은_404() {

@@ -63,6 +63,8 @@ public class ChatService {
             // 범위 밖 질문이 이어진 세션은 AI를 부르지 않는다(크레딧 보호).
             if (guard.blocked(sessionId)) return record(s, question, inputType, outOfScope(s, BLOCKED_REPLY));
             guard.chat(sessionId);
+            // 내 적금에서 꺼내는 요청은 AI가 이체 카드(반대 방향)나 이체 메뉴 이동으로 답할 수 있어, AI와 빈 금액 채우기보다 먼저 서버 규칙으로 안내한다.
+            if (transfers != null && transfers.fromOwn(question)) return record(s, question, inputType, planReply(s, transfers.fromOwnPlan(s)));
             // 빈 금액이 채워지면 같은 질문으로 업무 플랜을 새로 만들지 않는다.
             if (transfers != null) {
                 var filled = transfers.fill(s, question);
@@ -77,8 +79,9 @@ public class ChatService {
             String aiQuestion = red.text(userId, sessionId, question.trim());
             AiClient.Answer result;
             // R5: 가명화된 고객 상태와 블록 사전을 같은 호출에 넣는다(추가 호출 없음).
+            // 작업 35: 같은 세션의 최근 플랜(사건·끝낸 업무)도 함께 보내 이전 대화를 이어받게 한다.
             var context = new AiClient.Context(aiQuestion, inputType, turns, events, catalog.all(), help,
-                plans.shape(userId, sessionId), plans.blocksForAi());
+                plans.shape(userId, sessionId), plans.blocksForAi(), null, plans.recent(userId, sessionId, null));
             try { result = ai.answer(context); }
             catch (ApiException e) {
                 if (!"AI_REFUSED".equals(e.code)) throw e;
@@ -171,7 +174,8 @@ public class ChatService {
                 String aiQuestion = red.text(userId, sessionId, plan.question);
                 var done = plan.blocks.stream().filter(b -> !"PENDING".equals(b.status)).map(b -> b.blockId + (b.targetRef.isEmpty() ? "" : "@" + b.targetRef)).toList();
                 var context = new AiClient.Context(aiQuestion, "TEXT", red.turns(userId, sessionId, history(s.messages())), events, catalog.all(), null,
-                    plans.shape(userId, sessionId), plans.blocksForAi(), new AiClient.PlanState(plan.confirmedCards, done));
+                    plans.shape(userId, sessionId), plans.blocksForAi(), new AiClient.PlanState(plan.confirmedCards, done),
+                    plans.recent(userId, sessionId, plan.planId));
                 var result = ai.answer(context);
                 if (result == null || result.outOfScope() || !result.hasPlan()) plan.notice = REPLAN_FAILED;
                 else {
