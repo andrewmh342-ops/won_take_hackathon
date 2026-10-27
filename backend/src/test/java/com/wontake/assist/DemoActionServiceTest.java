@@ -149,7 +149,8 @@ class DemoActionServiceTest {
 
     @Test void 메뉴로_직접_처리해도_열린_플랜에_반영된다() {
         var p = plans.build("a", "sa", new AiPlan(List.of("여행"), List.of(new AiBlock("overseas-payment-check", "card-2", "", "해외 결제"),
-            new AiBlock("fx-rate-check", "", "JPY", "환율"), new AiBlock("fx-exchange-apply", "", "JPY", "현금")), List.of(), ""));
+            // 작업 36: 같은 통화의 환율 확인은 환전 신청에 합쳐지므로 환율은 다른 통화(USD)로 둔다
+            new AiBlock("fx-rate-check", "", "USD", "환율"), new AiBlock("fx-exchange-apply", "", "JPY", "현금")), List.of(), ""));
         act("OVERSEAS", "ref", "card-2", "on", true);
         act("EXCHANGE_APPLY", exchange(30000, "2026-10-30"));
         assertEquals("DONE", p.blocks.get(0).status);

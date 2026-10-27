@@ -128,11 +128,9 @@
     "type": "LINK",
     "target": "NONE",
     "param": "CURRENCY",
-    "requires": [
-      "fx-rate-check"
-    ],
+    "requires": [],
     "skipWhen": "",
-    "description": "여행 전에 현금 외화가 필요할 때 환전 신청 화면으로 이동한다. 환율 확인 다음에 둔다.",
+    "description": "여행 전에 현금 외화가 필요할 때 환전 신청 화면으로 이동한다. 환전 화면에서 가상 환율과 원화 금액을 함께 보여 주므로 같은 통화의 환율 확인은 따로 넣지 않아도 된다.",
     "effect": "외화 현금 환전 신청 접수. 고른 수령일에 지점에서 받는다.",
     "achieves": [
       "CASH_ABROAD"

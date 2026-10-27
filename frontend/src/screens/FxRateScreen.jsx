@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigation } from '../navigation/index.jsx';
 import BizLayout from '../components/BizLayout.jsx';
 import { useDemoState } from '../demo/useDemoState.js';
-import { toKrw, won } from '../demo/fx.js';
+import { toKrw, won, rateScreenAction } from '../demo/fx.js';
 
 export default function FxRateScreen() {
   const { params, navigate } = useNavigation();
@@ -42,10 +42,17 @@ export default function FxRateScreen() {
           <input inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ''))} />
         </label>
         <p className="fx-result" role="status">{krw === null ? '1 이상 정수로 입력해 주세요.' : `${value.toLocaleString('ko-KR')} ${code} ≈ ${won(krw)} (원 미만 버림)`}</p>
-        <button className="primary full" type="button" disabled={krw === null} data-track-id="fx-go-exchange"
-          onClick={() => navigate('exchange-apply', { menuId: 'exchange-apply', param: code, amount: value, planId: params.planId })}>
-          이 금액으로 환전 신청하기
-        </button>
+        {/* 작업 37: 플랜에서 들어오면 환전은 플랜의 환전 단계에서 한다(같은 일을 두 번 하지 않게). */}
+        {rateScreenAction(params) === 'NEXT' ? (
+          <button className="primary full" type="button" data-track-id="plan-next" onClick={() => navigate('plan', { planId: params.planId })}>
+            다음 단계로
+          </button>
+        ) : (
+          <button className="primary full" type="button" disabled={krw === null} data-track-id="fx-go-exchange"
+            onClick={() => navigate('exchange-apply', { menuId: 'exchange-apply', param: code, amount: value })}>
+            이 금액으로 환전 신청하기
+          </button>
+        )}
       </form>
     </BizLayout>
   );

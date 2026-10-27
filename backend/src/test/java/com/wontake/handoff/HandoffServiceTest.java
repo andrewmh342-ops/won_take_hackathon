@@ -106,4 +106,16 @@ class HandoffServiceTest {
         assertTrue(seen.get().clickTimeline().stream().anyMatch(e -> "card-1 분실".equals(e.query())));
         assertTrue(draft.toString().contains("넷플릭스 55,000원이 1002-123-456789로"));
     }
+
+    // 작업 38: 화면에서 답한 출국일이 요약에 들어가고, 남은 문제로 잘못 분류되지 않는다(모의 AI)
+    @Test void 출국일은_상담_요약의_목적에_들어가고_남은_문제가_아니다() {
+        var profiles = new com.wontake.assist.ProfileStore(store);
+        var guard = new com.wontake.session.UsageGuard();
+        var plans = new com.wontake.assist.PlanService(store, new com.wontake.assist.BlockCatalog(), profiles, guard);
+        new ChatService(store, catalog, new FakeAiClient(), null, guard, plans).chat("a", "sa", "나 카드 잃어버렸어", "TEXT");
+        profiles.state("a", "sa").tripDepartureDate = profiles.today();
+        var draft = new HandoffService(store, catalog, new FakeAiClient(), null, guard, plans).draft("a", "sa");
+        assertTrue(String.valueOf(draft.get("purpose")).contains("출국일: " + profiles.today() + "(오늘)"), String.valueOf(draft.get("purpose")));
+        assertFalse(String.valueOf(draft.get("unresolved")).contains("[고객 정보]"));
+    }
 }

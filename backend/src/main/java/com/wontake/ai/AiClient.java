@@ -15,14 +15,22 @@ public interface AiClient {
                      boolean usable, String reissueStatus) {}
     /** 여행 정보(정보 확인 블록의 답). 실제 날짜 대신 출국까지 남은 날 수만 보낸다. */
     record TripShape(String country, Integer daysUntilDeparture) {}
-    record CustomerShape(List<CardShape> cards, boolean hasTravelCard, List<String> currencies, boolean hasUsableTravelCard, TripShape trip) {
+    /** cash: 환전을 신청한 통화 코드(금액은 넣지 않는다, 작업 35). */
+    record CustomerShape(List<CardShape> cards, boolean hasTravelCard, List<String> currencies, boolean hasUsableTravelCard, TripShape trip, List<String> cash) {
+        public CustomerShape(List<CardShape> cards, boolean hasTravelCard, List<String> currencies, boolean hasUsableTravelCard, TripShape trip) { this(cards,hasTravelCard,currencies,hasUsableTravelCard,trip,List.of()); }
         public CustomerShape(List<CardShape> cards, boolean hasTravelCard, List<String> currencies) { this(cards,hasTravelCard,currencies,hasTravelCard,new TripShape(null,null)); }
     }
+    /** 작업 35: 같은 세션의 최근 플랜 요약. 끝낸·남은 업무는 blockId@카드 ref(카드가 아니면 blockId)로만 쓴다. */
+    record RecentPlan(List<String> events, List<String> done, List<String> pending) {}
     /** R5 블록 사전 중 AI에 보여 주는 부분. */
     record BlockInfo(String id, String name, String type, String target, String param, List<String> requires, String description,
                      String effect, List<String> achieves, String leadTime) {}
     record Context(String question, String inputType, List<Turn> history, List<Event> recentEvents, List<Menu> menus, HelpContext helpContext,
-                   CustomerShape customer, List<BlockInfo> blocks, PlanState planState) {
+                   CustomerShape customer, List<BlockInfo> blocks, PlanState planState, List<RecentPlan> recentPlans) {
+        public Context(String question, String inputType, List<Turn> history, List<Event> recentEvents, List<Menu> menus, HelpContext helpContext,
+                       CustomerShape customer, List<BlockInfo> blocks, PlanState planState) {
+            this(question,inputType,history,recentEvents,menus,helpContext,customer,blocks,planState,List.of());
+        }
         public Context(String question, String inputType, List<Turn> history, List<Event> recentEvents, List<Menu> menus, HelpContext helpContext,
                        CustomerShape customer, List<BlockInfo> blocks) {
             this(question,inputType,history,recentEvents,menus,helpContext,customer,blocks,null);

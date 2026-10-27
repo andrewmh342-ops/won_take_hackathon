@@ -293,3 +293,25 @@
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. 홈·스플래시 화면 설명은 SPEC에 아직 없음(승인 시 반영).
 - 확인하지 못한 것: 스플래시 화면 단위 자동 테스트 없음(JSX 테스트 도구 없음, 새 라이브러리 미추가). 커밋하지 않음.
 - 이 폴더 반영: 이전 폴더의 미커밋 변경을 origin/main(d48dc92) 위에 다시 적용. 홈 잔액은 main의 useAccounts·AccountStatus(서버 가상 잔액)를 그대로 써서 고정 잔액 상수를 두지 않음.
+
+### 2026-10-27 · [claude] R5 시연 시나리오 보완 (작업 33~37)
+- 사용자 요청: 같은 질문도 고객의 상태·이전 대화에 따라 다른 해결 순서가 나오는 것을 1막(일본 여행 준비) → 2막(카드 분실)으로 시연. 시연 중 문제(2막에서 나라 재질문, 환율·환전 중복, 대체 결제 확인·해외결제 설정 중복, 남은 카드 켜기 장면 없음) 해결. 수정안 docs/SPEC-수정안-시연시나리오.md 승인 후 SPEC R5 "R5 시연 시나리오 보완" 절·작업 33~37 추가.
+- 한 일:
+  - 33: 원격 main(팀원 PR #6 대화 이체·메뉴 자동 이동, PR #7 홈·스플래시)으로 DongHa 빨리 감기. 백엔드 256개·프런트 95개 통과 확인.
+  - 34: 시연 고객 A·B·C 모든 카드 해외결제 꺼짐(profiles.json, 프런트 mockDemo).
+  - 35: 플랜에 통화 블록이 들어가면 여행 나라 저장(JPY→일본 등, 이미 있으면 유지). AI 입력 customer.cash(환전 신청 통화, 금액 없음), Context.recentPlans(최근 플랜 2개의 사건·끝낸·남은 업무, ref만·사건은 다시 가명화) 추가. 대화·재판단 모두 전달.
+  - 36: 서버 조립 규칙 — 같은 통화의 환율 확인+환전 신청 → 환전 신청 하나(필수 우선, "환전 화면에서 환율을 함께 보여 줘요"), 같은 카드의 대체 결제 확인+해외결제 설정 → 꺼져 있으면 설정·켜져 있으면 확인 하나, 해외결제 설정은 첫 장만 필수(해외에서 쓸 카드가 이미 있으면 모두 선택), 출국일 질문은 끝낸 업무 다음 맨 앞(보호 조치 뒤 규칙 유지). blocks.json 환전 신청의 선행 블록(환율 확인) 제거.
+  - 37: 플랜에서 들어온 환율 화면은 [다음 단계로], 메뉴로 들어오면 [환전 신청하기]. 모의 AI: 출국일 모르면 묻기, 해외결제는 한 장만(트래블카드 우선, 이미 켜진 카드가 있으면 없음), 이전 플랜에서 여행 나라를 알면 분실 질문에도 여행 준비를 이어서 판단, 이미 환전한 통화는 다시 넣지 않음. chat-system.txt에 recentPlans·cash 설명과 규칙 추가, 카드 분실·여행 범위 문장이 이체 설명 아래로 밀려 있던 위치를 범위 목록 안으로 바로잡음.
+- 바뀐 파일과 이유: backend ai/AiClient(CustomerShape.cash, RecentPlan, Context.recentPlans)·FakeAiClient, assist/PlanService(나라 기억·recent·dedupe·departureFirst)·ProfileStore(cash), chat/ChatService(recentPlans 전달), resources/ai/chat-system.txt·data/profiles.json·data/blocks.json, 테스트 ProfileDefaultsTest(새)·PlanServiceTest·PlanChatTest·GoalCheckTest·DemoActionServiceTest; frontend demo/fx(rateScreenAction)·fx.test, screens/FxRateScreen, api/mockDemo; SPEC.md(승인 범위), docs/SPEC-수정안-시연시나리오.md(새, 승인 표시), PROGRESS.md.
+- 실행한 테스트와 결과: 작업마다 새 테스트 실패 확인 후 구현(34: 해외결제 켜진 카드 존재로 실패, 35: 새 필드·메서드 없음 컴파일 실패, 36: 6개 실패, 37: 프런트 1개·시나리오 2개 실패). 백엔드 `gradlew test bootJar` 272개 통과·0개 실패. 프런트 `node --test src/*/*.test.js` 96개 통과·0개 실패, `npm run build` 성공. 모의 서버(8081) API로 1막→2막 진행: 1막 정보 확인→트래블카드 확인→해외결제 설정(트래블카드)→환전 신청, 원테이크 완료 / 2막 AI 입력 trip={일본, 3일}·cash=[JPY], 트래블카드 분실 확인 뒤 분실신고→재발급→해외결제 설정(신용카드), 나라·출국일 재질문과 환전 재추가 없음.
+- 기존 테스트 기대값 변경(이유: 승인된 SPEC): 해외결제 기본값 꺼짐으로 GoalCheckTest 1개·PlanChatTest 2개·PlanServiceTest 2개는 테스트 안에서 그 카드를 켜도록 준비만 바꿈(확인하는 규칙은 그대로). 환율·환전 합치기로 DemoActionServiceTest 1개(환율을 다른 통화로)·PlanServiceTest "블록은_12개까지만"(합쳐지지 않는 블록 13개로)·PlanChatTest 모의 분실 테스트 1개(card-1의 대체 확인 또는 해외결제 설정)를 바꿈. 새로 쓴 테스트의 기대값은 고치지 않음.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 승인 범위만. 팀원 영역인 chat-system.txt의 이체 부분 내용은 고치지 않고, 밀려난 범위 문장 한 줄의 위치만 옮김.
+- 확인하지 못한 것: 실제 Claude가 recentPlans를 보고 끝낸 업무를 다시 넣지 않는지, 2막에서 남은 카드 한 장만 고르는지(작업 13과 함께 Claude 모드로 확인 필요). 브라우저 화면 확인은 이번에 하지 않았다(바뀐 화면은 환율 조회 버튼뿐이며 단위 테스트·빌드로 확인). 커밋하지 않음.
+
+### 2026-10-27 · [claude] 작업 38 상담 요약에 고객이 답한 여행 정보 넣기
+- 사용자 요청: Claude 모드 시연에서 출국일을 "오늘"로 답했는데 상담 요약에 "출국일은 아직 말하지 않음"이 나옴. 원인: 출국일은 원테이크 화면에서 입력돼 대화에 없고, 요약 입력(planProgress)의 정보 확인 줄에는 "DEPARTURE_DATE"라는 이름만 있었다. 요약 지침이 "확인되지 않으면 쓰지 않는다"라서 말하지 않았다고 판단함. 사용자가 수정 요청 → SPEC R5 시연 시나리오 보완에 "상담 요약에 고객 정보 넣기" 2줄·규칙 2행·작업 38 추가.
+- 한 일: PlanService.progress에 `[고객 정보]` 줄(여행 나라, 출국일과 오늘·내일·N일 뒤, 환전 신청 통화 — 금액 없음) 추가, 정보 확인 진행 줄에 답한 값("출국일 2026-10-27"). handoff-system.txt에 `[고객 정보]`는 확인된 사실이며 "말하지 않았다"로 쓰지 않는다는 지침. 모의 요약은 `[고객 정보]`를 목적에 붙이고 남은 문제로 분류하지 않음.
+- 바뀐 파일: backend assist/PlanService, ai/FakeAiClient, resources/ai/handoff-system.txt, 테스트 PlanServiceTest(2개)·HandoffServiceTest(1개); SPEC.md(승인 범위), PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 3개 실패 확인 후 구현. 백엔드 `gradlew test` 275개 통과·0개 실패. 모의 서버 API로 1막(출국일 오늘)→2막(트래블카드 분실)→상담 요약: 목적에 "여행 나라: 일본, 출국일: 2026-10-27(오늘), 환전 신청: JPY". 기존 테스트 기대값 변경 없음.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 승인 범위만.
+- 확인하지 못한 것: 실제 Claude 요약이 새 지침대로 출국일을 사실로 쓰고 급한 정도를 함께 적는지(Claude 모드로 다시 확인 필요). 커밋하지 않음.

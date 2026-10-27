@@ -21,3 +21,11 @@ test('외화 금액은 1 이상 정수만 받는다', () => {
   assert.equal(toKrw(-1, JPY), null);
   assert.equal(toKrw(1.5, JPY), null);
 });
+
+// 작업 37: 플랜에서 들어온 환율 화면은 환전 신청을 따로 띄우지 않는다(같은 통화의 환전 단계와 겹치지 않게)
+test('플랜에서_들어온_환율_화면은_다음_단계로', async () => {
+  const { rateScreenAction } = await import('./fx.js');
+  assert.equal(rateScreenAction({ planId: 'p-1' }), 'NEXT');
+  assert.equal(rateScreenAction({ menuId: 'exchange-rate' }), 'EXCHANGE');
+  assert.equal(rateScreenAction(undefined), 'EXCHANGE');
+});

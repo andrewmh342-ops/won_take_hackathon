@@ -52,26 +52,32 @@ public class FakeAiClient implements AiClient {
             if (q.contains("신분증")) unhandled.add("신분증 분실 신고");
             if (q.contains("OTP")) unhandled.add("OTP 재발급");
         }
-        if (travel) {
-            String currency = countries.entrySet().stream().filter(e -> q.contains(e.getKey())).map(Map.Entry::getValue).findFirst().orElse("");
-            var trip = c.customer().trip();
+        // 작업 37: 이전 플랜에서 여행 나라를 알게 된 고객이 카드를 잃어버리면, 여행 준비도 이어서 본다(맥락 기억).
+        var trip = c.customer().trip();
+        boolean knownTrip = trip != null && trip.country() != null;
+        if (travel || (!lostCards.isEmpty() && knownTrip)) {
+            String asked = countries.entrySet().stream().filter(e -> q.contains(e.getKey())).map(Map.Entry::getValue).findFirst().orElse("");
+            String currency = !asked.isEmpty() ? asked : knownTrip ? countries.getOrDefault(trip.country(), "") : "";
+            var cash = c.customer().cash() == null ? List.<String>of() : c.customer().cash();
             events.add("해외여행 준비");
             goals.add(new AiGoal("PAYMENT_ABROAD", "(모의) 여행지에서 쓸 결제 수단 확보", true));
             boolean travelCardLost = lostCards.stream().anyMatch(CardShape::travel), noOtherCard = false;
-            // 분실로 결제 수단이 줄었거나 트래블카드가 없으면, 수령 일정 판단에 출국일이 필요하다(보호 조치 뒤에 묻는다)
-            if ((!lostCards.isEmpty() || !c.customer().hasUsableTravelCard()) && (trip == null || trip.daysUntilDeparture() == null))
-                blocks.add(new AiBlock("ask-info", "", "DEPARTURE_DATE", "(모의) 새 카드를 출국 전에 받을 수 있는지 판단하려면 출국일이 필요해요."));
-            if (currency.isEmpty() && (trip == null || trip.country() == null))
+            // 출국일을 모르면 묻는다. 받기까지 걸리는 업무(재발급·환전 수령)를 판단하는 데 필요하다(보호 조치가 있으면 서버가 그 뒤로 옮긴다).
+            if (trip == null || trip.daysUntilDeparture() == null)
+                blocks.add(new AiBlock("ask-info", "", "DEPARTURE_DATE", "(모의) 출국일에 맞춰 준비할 일을 정해요."));
+            if (currency.isEmpty() && !knownTrip)
                 blocks.add(new AiBlock("ask-info", "", "COUNTRY", "(모의) 여행 나라에 따라 통화가 달라요."));
+            // 해외에서 쓸 카드는 한 장이면 된다: 잃어버리지 않은 사용 가능 카드 중 이미 켜진 카드가 없을 때만, 트래블카드 우선으로 한 장을 켠다.
+            var keep = cards.stream().filter(k -> !lostRefs.contains(k.ref()) && k.usable()).toList();
+            boolean payable = keep.stream().anyMatch(CardShape::overseasPayment);
+            var pick = keep.stream().filter(CardShape::travel).findFirst().orElse(keep.isEmpty() ? null : keep.getFirst());
             if (!lostCards.isEmpty()) {
                 obstacles.add(new AiObstacle("(모의) 카드 분실로 여행지에서 쓸 결제 수단이 줄었어요.", "BLOCK", List.of()));
-                for (var card : cards) if (!lostRefs.contains(card.ref()) && card.usable())
-                    blocks.add(new AiBlock("alt-payment-check", card.ref(), "", "(모의) 잃어버리지 않은 카드를 해외에서 쓸 수 있는지 확인해요."));
-                for (var card : cards) if (!lostRefs.contains(card.ref()))
-                    blocks.add(new AiBlock("overseas-payment-check", card.ref(), "", "(모의) 해외결제가 꺼져 있으면 켜요."));
+                if (!payable && pick != null)
+                    blocks.add(new AiBlock("overseas-payment-check", pick.ref(), "", "(모의) 남은 카드로 해외에서 결제할 수 있게 켜요."));
                 if (travelCardLost) considered.add(new AiConsidered("travel-card-apply", "(모의) 잃어버린 트래블카드를 재발급하므로 새로 신청하지 않았어요."));
                 // 잃어버리지 않은 사용 가능 카드가 없으면 해외 결제 수단이 남지 않는다: 현금(환전)을 필수로, 수령 일정은 상담으로
-                noOtherCard = cards.stream().noneMatch(k -> !lostRefs.contains(k.ref()) && k.usable());
+                noOtherCard = keep.isEmpty();
                 if (noOtherCard) {
                     obstacles.add(new AiObstacle("(모의) 해외에서 쓸 수 있는 다른 카드가 없어요.", "HANDOFF", List.of()));
                     unhandled.add("출국 전 해외 결제 수단 확보(새 카드 수령 일정 확인)");
@@ -79,9 +85,11 @@ public class FakeAiClient implements AiClient {
             } else {
                 blocks.add(new AiBlock("travel-card-check", "", "", "(모의) 해외에서 쓸 카드를 확인해요."));
                 blocks.add(new AiBlock("travel-card-apply", "", "", "(모의) 트래블카드가 없으면 신청해요."));
-                for (var card : cards) blocks.add(new AiBlock("overseas-payment-check", card.ref(), "", "(모의) 해외에서 결제되게 해요."));
+                if (!payable && pick != null)
+                    blocks.add(new AiBlock("overseas-payment-check", pick.ref(), "", "(모의) 해외에서 결제되게 해요."));
             }
-            if (!currency.isEmpty()) {
+            // 이미 환전을 신청한 통화는 다시 넣지 않는다(이전 플랜에서 한 일).
+            if (!currency.isEmpty() && !cash.contains(currency)) {
                 blocks.add(new AiBlock("fx-rate-check", "", currency, "(모의) 여행지 환율을 확인해요."));
                 if (noOtherCard) {
                     blocks.add(new AiBlock("fx-exchange-apply", "", currency, "(모의) 쓸 수 있는 카드가 없어 현지 현금이 꼭 필요해요."));
@@ -91,7 +99,7 @@ public class FakeAiClient implements AiClient {
                     goals.add(new AiGoal("CASH_ABROAD", "(모의) 필요하면 현지 현금 준비", false));
                 }
             }
-            blocks.add(new AiBlock("travel-insurance-guide", "", "", "(모의) 여행 준비 전체를 원할 때 보험 가입 방법을 볼 수 있어요.", "OPTIONAL"));
+            if (travel) blocks.add(new AiBlock("travel-insurance-guide", "", "", "(모의) 여행 준비 전체를 원할 때 보험 가입 방법을 볼 수 있어요.", "OPTIONAL"));
         }
         return new AiPlan(events, blocks, unhandled, blocks.isEmpty() ? "" : "(모의) 보호 조치 먼저, 그다음 남은 문제를 해결하는 순서예요.",
             goals, obstacles, considered);
@@ -104,7 +112,10 @@ public class FakeAiClient implements AiClient {
         for(var t:c.conversation()) if(t.role().equals("ASSISTANT"))
             for(var m:c.menus()) if(t.message().contains(m.name())) tried.add(m.name()+" 안내받음");
         for(var line:c.planProgress()) if(line.startsWith("[완료] ")) tried.add(line.substring(5));
-        var left=c.planProgress().stream().filter(l->!l.startsWith("[완료] ")).toList();
+        // 작업 38: [고객 정보]는 고객이 화면에서 답한 사실이라 목적에 붙이고, 남은 문제로 보지 않는다.
+        var info=c.planProgress().stream().filter(l->l.startsWith("[고객 정보] ")).map(l->l.substring("[고객 정보] ".length())).toList();
+        if(!info.isEmpty()) purpose=(purpose.isEmpty()?"(모의) ":purpose+" · ")+String.join(", ",info);
+        var left=c.planProgress().stream().filter(l->!l.startsWith("[완료] ") && !l.startsWith("[고객 정보] ")).toList();
         return new HandoffSummary(purpose,"",tried.isEmpty()?"":"(모의) "+String.join(", ",tried),left.isEmpty()?"":"(모의) "+String.join(", ",left));
     }
     private static final Pattern WHO = Pattern.compile("(\\S+?)(?:한테|에게)"), SEND = Pattern.compile("\\[번호\\]\\s*[만천억]?원|\\[금액\\]|보내|이체|송금|넣어");

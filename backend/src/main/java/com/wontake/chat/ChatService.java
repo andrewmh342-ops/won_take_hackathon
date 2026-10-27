@@ -77,8 +77,9 @@ public class ChatService {
             String aiQuestion = red.text(userId, sessionId, question.trim());
             AiClient.Answer result;
             // R5: 가명화된 고객 상태와 블록 사전을 같은 호출에 넣는다(추가 호출 없음).
+            // 작업 35: 같은 세션의 최근 플랜(사건·끝낸 업무)도 함께 보내 이전 대화를 이어받게 한다.
             var context = new AiClient.Context(aiQuestion, inputType, turns, events, catalog.all(), help,
-                plans.shape(userId, sessionId), plans.blocksForAi());
+                plans.shape(userId, sessionId), plans.blocksForAi(), null, plans.recent(userId, sessionId, null));
             try { result = ai.answer(context); }
             catch (ApiException e) {
                 if (!"AI_REFUSED".equals(e.code)) throw e;
@@ -171,7 +172,8 @@ public class ChatService {
                 String aiQuestion = red.text(userId, sessionId, plan.question);
                 var done = plan.blocks.stream().filter(b -> !"PENDING".equals(b.status)).map(b -> b.blockId + (b.targetRef.isEmpty() ? "" : "@" + b.targetRef)).toList();
                 var context = new AiClient.Context(aiQuestion, "TEXT", red.turns(userId, sessionId, history(s.messages())), events, catalog.all(), null,
-                    plans.shape(userId, sessionId), plans.blocksForAi(), new AiClient.PlanState(plan.confirmedCards, done));
+                    plans.shape(userId, sessionId), plans.blocksForAi(), new AiClient.PlanState(plan.confirmedCards, done),
+                    plans.recent(userId, sessionId, plan.planId));
                 var result = ai.answer(context);
                 if (result == null || result.outOfScope() || !result.hasPlan()) plan.notice = REPLAN_FAILED;
                 else {

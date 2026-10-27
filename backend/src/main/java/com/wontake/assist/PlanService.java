@@ -26,12 +26,15 @@ public class PlanService {
     static final String HANDOFF = "counselor-handoff";
     /** 카드 분실 플랜을 이루는 블록(분실 카드 확인 대상). */
     static final Set<String> LOSS_BLOCKS = Set.of("card-lost-report", "simple-pay-unlink", "card-reissue", "auto-payment-switch");
+    /** 작업 35: 플랜에 통화 블록이 들어가면 그 나라를 여행 나라로 기억한다(다음 질문에서 다시 묻지 않게). */
+    static final Map<String, String> CURRENCY_COUNTRY = Map.of("JPY", "일본", "USD", "미국", "EUR", "유럽", "CNY", "중국");
     static final Set<String> GOAL_TYPES = Set.of("CARD_PROTECTION", "PAYMENT_ABROAD", "CASH_ABROAD", "OTHER");
     private static final Map<String, String> SKIP_REASON = Map.of(
         "CARD_STOPPED", "이미 정지된 카드예요", "NO_SIMPLE_PAY", "간편결제에 등록되지 않은 카드예요", "REISSUED", "이미 재발급을 신청했어요",
         "NO_AUTO_PAYMENTS", "이 카드에 걸린 자동결제가 없어요", "OVERSEAS_ON", "이미 해외결제가 켜져 있어요",
         "HAS_USABLE_TRAVEL_CARD", "쓸 수 있는 트래블카드가 있어 새로 신청하지 않아요", "LOST_OR_STOPPED", "지금 쓸 수 없는 카드예요");
     private record Item(Block block, String ref, String param, String reason, boolean adjusted, String priority) {
+        Item withPriority(String p) { return new Item(block, ref, param, reason, adjusted, p); }
         Item adjust() { return new Item(block, ref, param, reason, true, priority); }
         boolean same(String id, String r, String p) { return block.id().equals(id) && ref.equals(r) && param.equals(p); }
     }
@@ -122,6 +125,11 @@ public class PlanService {
         for (var o : finished)
             if (items.stream().noneMatch(i -> i.same(o.blockId, o.targetRef, o.param)) && catalog.find(o.blockId) != null && (o.targetRef.isEmpty() || state.card(o.targetRef) != null))
                 items.add(kept++, new Item(catalog.find(o.blockId), o.targetRef, o.param, o.reason, o.adjusted, o.priority));
+        if (state.tripCountry == null)
+            items.stream().filter(i -> i.block.currencyParam()).map(i -> CURRENCY_COUNTRY.get(i.param)).filter(Objects::nonNull).findFirst()
+                .ifPresent(country -> state.tripCountry = country);
+        dedupe(items, state, lost, finished, skipped);
+        departureFirst(items, finished);
         fixOrder(items, state);
         protectFirst(items);
         if (items.size() > MAX_BLOCKS) items.subList(MAX_BLOCKS, items.size()).clear();
@@ -317,10 +325,15 @@ public class PlanService {
             Plan last = null;
             for (var p : state.plans.values()) last = p;
             var lines = new ArrayList<String>();
+            // 작업 38: 고객이 화면에서 직접 답한 정보(확인된 사실). 대화에는 없으므로 요약 AI가 "말하지 않았다"고 쓰지 않게 넣는다.
+            if (state.tripCountry != null) lines.add("[고객 정보] 여행 나라: " + state.tripCountry);
+            if (state.tripDepartureDate != null) lines.add("[고객 정보] 출국일: " + state.tripDepartureDate + "(" + daysText(profiles.daysUntilDeparture(state)) + ")");
+            var cash = state.exchangeRequests.stream().map(r -> r.currency).distinct().toList();
+            if (!cash.isEmpty()) lines.add("[고객 정보] 환전 신청: " + String.join(", ", cash)); // 금액은 넣지 않는다
             for (var b : last.blocks) {
                 if (b.blockId.equals(HANDOFF)) continue;
                 String card = restored ? b.target : b.targetRef;
-                String who = b.targetRef.isEmpty() ? (b.param.isEmpty() ? "" : " · " + b.param) : " · " + card;
+                String who = b.targetRef.isEmpty() ? (b.param.isEmpty() ? "" : " · " + infoText(b.param, state)) : " · " + card;
                 lines.add(("PENDING".equals(b.status) ? "[남음] " : "[완료] ") + b.name + who);
             }
             for (var g : last.goalStatus) if (!"SECURED".equals(g.status())) lines.add("[목표 미확보] " + g.label() + ": " + (restored ? g.detail() : g.status()));
@@ -328,6 +341,19 @@ public class PlanService {
             for (var u : last.unhandled) lines.add("[상담 필요] " + (restored ? u : Redactor.redact(state, u)));
             return lines;
         }
+    }
+
+    private static String daysText(Integer days) {
+        if (days == null) return "날짜 확인 필요";
+        return days == 0 ? "오늘" : days == 1 ? "내일" : days > 1 ? days + "일 뒤" : (-days) + "일 전";
+    }
+    /** 진행 줄의 블록 값: 정보 확인은 답한 값을, 통화는 코드 그대로 쓴다. */
+    private static String infoText(String param, CustomerState state) {
+        return switch (param) {
+            case "DEPARTURE_DATE" -> state.tripDepartureDate == null ? "출국일" : "출국일 " + state.tripDepartureDate;
+            case "COUNTRY" -> state.tripCountry == null ? "여행 나라" : "여행 나라 " + state.tripCountry;
+            default -> param;
+        };
     }
 
     /** AI가 쓴 글의 카드 ref(card-1 등)를 상담사가 읽을 카드 이름으로 바꾼다. */
@@ -350,6 +376,28 @@ public class PlanService {
         });
     }
 
+    /**
+     * 작업 35: 같은 세션의 최근 플랜 2개(지금 다시 판단하는 플랜은 뺀다)를 AI 입력용으로 요약한다.
+     * 사건 이름은 화면용으로 복원돼 있으므로 다시 가명화하고, 업무는 blockId@카드 ref로만 쓴다.
+     */
+    public List<AiClient.RecentPlan> recent(String userId, String sessionId, String excludePlanId) {
+        var state = profiles.state(userId, sessionId);
+        synchronized (state) {
+            var all = state.plans.values().stream().filter(p -> !p.planId.equals(excludePlanId)).toList();
+            var out = new ArrayList<AiClient.RecentPlan>();
+            for (var p : all.subList(Math.max(0, all.size() - 2), all.size())) {
+                var done = new ArrayList<String>(); var pending = new ArrayList<String>();
+                for (var b : p.blocks) {
+                    if (b.blockId.equals(HANDOFF)) continue;
+                    String key = b.blockId + (b.targetRef.isEmpty() ? "" : "@" + b.targetRef);
+                    ("PENDING".equals(b.status) ? pending : done).add(key);
+                }
+                out.add(new AiClient.RecentPlan(p.events.stream().map(e -> Redactor.redact(state, e)).toList(), done, pending));
+            }
+            return out;
+        }
+    }
+
     /** 작업 32: 원테이크 화면을 다시 열 때 쓰는 현재 플랜. */
     public Plan get(String userId, String sessionId, String planId) {
         var state = profiles.state(userId, sessionId);
@@ -360,6 +408,57 @@ public class PlanService {
         return Map.of("blockId", id, "name", name, "target", target, "reason", reason);
     }
     /** 긴급 보호 조치는 질문 때문에 늦추지 않는다: 정보 확인 블록은 마지막 분실신고 뒤로. */
+    private static boolean finishedBefore(Item i, List<PlanBlock> finished) {
+        return finished.stream().anyMatch(o -> i.same(o.blockId, o.targetRef, o.param));
+    }
+    private static int indexOf(List<Item> items, String id, String ref, String param) {
+        for (int k = 0; k < items.size(); k++) if (items.get(k).same(id, ref, param)) return k;
+        return -1;
+    }
+    /**
+     * 작업 36: 같은 효과의 단계를 하나로 합친다(이전 플랜에서 끝낸 업무는 건드리지 않는다).
+     * 같은 통화의 환율 확인 + 환전 신청 → 환전 신청(필수 우선), 같은 카드의 대체 결제 수단 확인 + 해외결제 설정 → 하나,
+     * 해외결제 설정은 첫 장만 필수(해외에서 쓸 카드가 이미 있으면 모두 선택).
+     */
+    private static void dedupe(List<Item> items, CustomerState state, Set<String> lost, List<PlanBlock> finished, List<Map<String, Object>> skipped) {
+        for (var rate : List.copyOf(items)) {
+            if (!rate.block.id().equals("fx-rate-check") || finishedBefore(rate, finished)) continue;
+            int at = indexOf(items, "fx-exchange-apply", "", rate.param);
+            if (at < 0) continue;
+            if ("REQUIRED".equals(rate.priority)) items.set(at, items.get(at).withPriority("REQUIRED"));
+            items.remove(rate);
+            skipped.add(skip(rate.block.id(), rate.block.name(), rate.param, "환전 화면에서 환율을 함께 보여 줘요"));
+        }
+        for (var alt : List.copyOf(items)) {
+            if (!alt.block.id().equals("alt-payment-check") || finishedBefore(alt, finished)) continue;
+            int at = indexOf(items, "overseas-payment-check", alt.ref, "");
+            if (at < 0) continue;
+            var card = state.card(alt.ref);
+            if (card.overseasPayment) {
+                var setting = items.remove(at);
+                skipped.add(skip(setting.block.id(), setting.block.name(), card.display(), "이미 해외결제가 켜져 있어요"));
+            } else {
+                items.remove(alt);
+                skipped.add(skip(alt.block.id(), alt.block.name(), card.display(), "해외결제 설정에서 함께 확인해요"));
+            }
+        }
+        boolean payable = state.cards.stream().anyMatch(c -> c.usable() && c.overseasPayment && !lost.contains(c.ref));
+        boolean first = true;
+        for (int k = 0; k < items.size(); k++) {
+            var i = items.get(k);
+            if (!i.block.id().equals("overseas-payment-check") || finishedBefore(i, finished)) continue;
+            if (payable || !first) items.set(k, i.withPriority("OPTIONAL"));
+            first = false;
+        }
+    }
+    /** 작업 36: 출국일을 묻는 단계는 끝낸 업무 다음 맨 앞에 둔다. 보호 조치가 있으면 protectFirst가 그 뒤로 옮긴다. */
+    private static void departureFirst(List<Item> items, List<PlanBlock> finished) {
+        int at = indexOf(items, "ask-info", "", "DEPARTURE_DATE");
+        if (at < 0) return;
+        int front = 0;
+        while (front < items.size() && finishedBefore(items.get(front), finished)) front++;
+        if (at > front) items.add(front, items.remove(at));
+    }
     private static void protectFirst(List<Item> items) {
         int last = -1;
         for (int i = 0; i < items.size(); i++) if (items.get(i).block.id().equals("card-lost-report")) last = i;
