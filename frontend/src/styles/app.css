@@ -2333,17 +2333,6 @@ input::placeholder {
   color: var(--text);
   font-weight: 900;
 }
-.take-spinner {
-  width: 48px;
-  height: 48px;
-  border: 5px solid var(--primary-soft);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: take-spin 0.9s linear infinite;
-}
-@keyframes take-spin {
-  to { transform: rotate(360deg); }
-}
 .card-tiles {
   display: grid;
   gap: 10px;
@@ -3016,4 +3005,98 @@ input::placeholder {
 .take-count.all {
   background: var(--primary);
   color: var(--surface);
+}
+
+/* AI가 판단하는 동안: 로봇이 입력 중인 말풍선 (components/AiThinking.jsx). 원테이크·AI 대화 공용 */
+.ai-thinking {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 8px 0;
+}
+.ai-thinking-avatar {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  animation: ai-bob 1.6s ease-in-out infinite;
+}
+.ai-thinking-bubble {
+  position: relative;
+  max-width: 250px;
+  padding: 12px 16px 14px;
+  border-radius: 18px 18px 18px 4px;
+  background: var(--bg);
+}
+.ai-thinking-bubble small {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: 0.4px;
+}
+.ai-thinking-bubble p {
+  margin: 4px 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--text);
+  animation: ai-line-in 0.35s ease-out;
+}
+.ai-typing {
+  display: flex;
+  gap: 5px;
+}
+.ai-typing i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.3;
+  animation: ai-dot 1.2s ease-in-out infinite;
+}
+.ai-typing i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.ai-typing i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.ai-thinking.compact {
+  margin: 0;
+}
+.ai-thinking.compact .ai-thinking-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+}
+.ai-thinking.compact .ai-thinking-bubble p {
+  font-size: 15px;
+  font-weight: 600;
+}
+.chat-thinking {
+  list-style: none;
+  align-self: flex-start;
+}
+@keyframes ai-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+@keyframes ai-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes ai-line-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking-avatar, .ai-typing i, .ai-thinking-bubble p {
+    animation: none;
+  }
+  .ai-typing i {
+    opacity: 0.6;
+  }
 }

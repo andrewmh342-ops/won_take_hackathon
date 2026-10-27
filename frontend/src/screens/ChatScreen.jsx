@@ -4,6 +4,7 @@ import { getHandoffSummary, postChat, postHandoff, getHistory } from '../api/cli
 import { cancelRecognition, startRecognition, stopRecognition } from '../audio/speech.js';
 import Popup from '../components/Popup.jsx';
 import PlanCard from '../components/PlanCard.jsx';
+import AiThinking from '../components/AiThinking.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 import { openReplyMenu, claimInitialQuestion, menuReplyContent } from '../chat/menuNavigation.js';
@@ -110,7 +111,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     threadEnd.current?.scrollIntoView({ block: 'nearest' });
-  }, [messages]);
+  }, [messages, busy]);
 
   useEffect(() => {
     mounted.current = true;
@@ -302,6 +303,12 @@ export default function ChatScreen() {
             </li>
           );
         })}
+        {/* AI가 답을 만드는 동안 대화 안에 입력 중 말풍선을 둔다. */}
+        {busy && (
+          <li className="chat-thinking">
+            <AiThinking kind="chat" compact />
+          </li>
+        )}
         <li ref={threadEnd} aria-hidden="true" />
       </ol>
 
@@ -320,7 +327,6 @@ export default function ChatScreen() {
         </p>
       )}
       {!historyReady && <button className="secondary" onClick={() => setHistoryAttempt((n) => n + 1)}>대화 다시 불러오기</button>}
-      {busy && <p role="status">질문과 맥락을 확인하고 있어요.</p>}
       {micState !== 'idle' && (
         <p className="recording-status" role="status">
           {micState === 'starting' && '마이크 연결을 기다리고 있어요.'}

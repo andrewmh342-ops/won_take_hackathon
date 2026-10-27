@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getPlan, getDemoState, executePlan, confirmCards, answerPlan, reviewPlan } from '../api/client.js';
 import { useNavigation } from '../navigation/index.jsx';
 import { findMenu } from '../data/menu.js';
+import AiThinking from '../components/AiThinking.jsx';
 import {
   planSteps, currentStepIndex, planChanges, goalWarnings, finishState, optionalBlocks, dateChips, maxDate,
   actionLabel, stepTitle, stepLabel, isLoss, required,
@@ -227,6 +228,7 @@ export default function PlanScreen() {
   const [demo, setDemo] = useState(null);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState('');
+  const [thinking, setThinking] = useState('review');
   const [toast, setToast] = useState('');
   const [error, setError] = useState('');
   const [newKeys, setNewKeys] = useState(() => new Set());
@@ -276,7 +278,8 @@ export default function PlanScreen() {
   };
 
   /** 카드 확인·정보 입력·추가 찾기: AI가 다시 판단하는 동안 그 카드에 알리고, 바뀐 할 일을 한 줄로 알려 준다. */
-  async function replan(request, emptyMessage = '') {
+  async function replan(request, emptyMessage = '', kind = 'review') {
+    setThinking(kind);
     setBusy('review');
     setError('');
     try {
@@ -313,7 +316,7 @@ export default function PlanScreen() {
     return (
       <section className="take">
         <TakeHeader onBack={() => navigate('chat')} />
-        <p className="take-loading">{error || '불러오고 있어요.'}</p>
+        {error ? <p className="take-loading">{error}</p> : <div className="take-body"><AiThinking kind="load" /></div>}
         {error && <button className="secondary" type="button" onClick={load}>다시 불러오기</button>}
       </section>
     );
@@ -349,18 +352,16 @@ export default function PlanScreen() {
           <article key={step.key} className="take-page" aria-hidden={i !== index} aria-label={`${i + 1}단계 ${step.label}`}>
             {busy === 'review' && i === index ? (
               <div className="take-body">
-                <span className="take-spinner" aria-hidden="true" />
-                <h2>할 일을 다시 정리하고 있어요</h2>
-                <p className="take-sub">알려 주신 내용에 맞춰 바꿔 드릴게요.</p>
+                <AiThinking kind={thinking} />
               </div>
             ) : step.kind === 'CONFIRM' ? (
-              <ConfirmPage plan={plan} cards={demo?.cards} busy={Boolean(busy)} onConfirm={(refs) => replan(() => confirmCards(plan.planId, refs))} />
+              <ConfirmPage plan={plan} cards={demo?.cards} busy={Boolean(busy)} onConfirm={(refs) => replan(() => confirmCards(plan.planId, refs), '', 'confirm')} />
             ) : step.kind === 'FINISH' ? (
               <FinishPage plan={plan} busy={Boolean(busy)} onRun={run} onHandoff={openHandoff} onGoCurrent={() => setIndex(current)}
                 onEnd={() => navigate('home')} onReview={() => replan(() => reviewPlan(plan.planId), '더 하실 일은 없어요')} />
             ) : step.block.blockId === 'ask-info' && step.block.status === 'PENDING' ? (
               <AskPage block={step.block} today={demo?.today} busy={Boolean(busy)}
-                onAnswer={(block, value) => replan(() => answerPlan(plan.planId, block.index, value))} />
+                onAnswer={(block, value) => replan(() => answerPlan(plan.planId, block.index, value), '', 'answer')} />
             ) : (
               <BlockPage plan={plan} block={step.block} cards={demo?.cards} busy={Boolean(busy)} onRun={run} onNext={next} onGoConfirm={() => setIndex(0)} />
             )}
