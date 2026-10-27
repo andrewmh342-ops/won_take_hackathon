@@ -59,7 +59,7 @@ public class FakeAiClient implements AiClient {
         }
     }
     @Override public Answer answer(Context c) {
-        String q = c.question();
+        String q = c.question().replace("이채", "이체");
         // 연결 테스트용 판정: "누구한테/에게"와 돈을 보내는 말이 함께 있으면 이체 요청으로 본다("상담사에게 연결해 줘"는 아니다).
         // 실제 판정은 CLAUDE 모드에서 지침으로 한다. 프론트 mock.js의 같은 판정과 함께 고친다.
         if (WHO.matcher(q).find() && SEND.matcher(q).find()) return new Answer("연결 테스트용 모의 응답입니다. 계좌이체 메뉴를 확인해 보세요.", "", List.of("instant-transfer"), List.of(), false, Answer.TRANSFER_PLAN);
@@ -83,6 +83,7 @@ public class FakeAiClient implements AiClient {
             }
             if (q.contains("환전")) domain="exchange";
             else if (q.contains("이체")) domain="transfer";
+            else if (q.contains("거래") || q.contains("입출금")) domain="account";
             ids = switch(domain) {
                 case "exchange" -> List.of("exchange-history");
                 case "transfer" -> List.of("transfer-history");
@@ -107,6 +108,6 @@ public class FakeAiClient implements AiClient {
         String names = String.join(", ", c.menus().stream().filter(m -> selected.contains(m.id())).map(m -> m.name()).toList());
         return new Answer(ids.isEmpty() ? "연결 테스트용 모의 응답입니다. 관련 메뉴를 찾지 못했어요." :
             "연결 테스트용 모의 응답입니다. " + names + " 메뉴를 확인해 보세요.",
-            "VOICE".equals(c.inputType()) ? q : "", ids, List.of(), q.contains("상담"));
+            "VOICE".equals(c.inputType()) ? c.question() : "", ids, List.of(), q.contains("상담"), Answer.IN_SCOPE, ids.size() > 1);
     }
 }

@@ -23,9 +23,11 @@ public interface AiClient {
      * scope는 금융앱 이용 불편 질문인지(IN_SCOPE) 아닌지(OUT_OF_SCOPE)다. OUT_OF_SCOPE면 서버가 AI 문장을 버린다.
      * TRANSFER_PLAN은 받는 사람을 말한 이체 요청이다. 서버가 plan으로 작업 목록을 만들고, 작업이 없으면 이 답의 메뉴 안내를 대신 보여 준다.
      */
-    record Answer(String reply, String normalized, List<String> menuIds, List<String> steps, boolean handoff, String scope) {
+    record Answer(String reply, String normalized, List<String> menuIds, List<String> steps, boolean handoff, String scope, boolean needsConfirmation) {
         public static final String IN_SCOPE = "IN_SCOPE", OUT_OF_SCOPE = "OUT_OF_SCOPE", TRANSFER_PLAN = "TRANSFER_PLAN";
         public static final List<String> CHAT_SCOPES = List.of(IN_SCOPE, OUT_OF_SCOPE, TRANSFER_PLAN);
+        /** 명시적 메뉴 선택을 만드는 기존 모의 구현·테스트의 생성자를 유지한다. 실제 Claude 응답은 확인 여부를 따로 읽는다. */
+        public Answer(String reply, String normalized, List<String> menuIds, List<String> steps, boolean handoff, String scope) { this(reply,normalized,menuIds,steps,handoff,scope,false); }
         public Answer(String reply, String normalized, List<String> menuIds, List<String> steps, boolean handoff) { this(reply,normalized,menuIds,steps,handoff,IN_SCOPE); }
         public Answer(String reply, String normalized, List<String> menuIds, List<String> steps) { this(reply,normalized,menuIds,steps,false); }
         public boolean outOfScope() { return OUT_OF_SCOPE.equals(scope); }

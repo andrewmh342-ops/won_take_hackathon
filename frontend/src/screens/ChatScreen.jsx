@@ -5,7 +5,8 @@ import { cancelRecognition, startRecognition, stopRecognition } from '../audio/s
 import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
-import { replyMenus, openReplyMenu, claimInitialQuestion } from '../chat/menuNavigation.js';
+import { openReplyMenu, claimInitialQuestion } from '../chat/menuNavigation.js';
+import MenuReply from '../chat/MenuReply.jsx';
 import PlanReply from '../plan/PlanReply.jsx';
 
 const responseText = {
@@ -254,8 +255,6 @@ export default function ChatScreen() {
 
       <ol className="chat-thread" aria-live="polite" aria-label="대화 내용">
         {messages.map((message, index) => {
-          const menuItems = replyMenus(message);
-
           return (
             <li
               className={`chat-message chat-message-${message.role.toLowerCase()}`}
@@ -290,17 +289,7 @@ export default function ChatScreen() {
                   ))}
                 </ol>
               )}
-              {menuItems.map((menuItem) => (
-                <button
-                  key={menuItem.id}
-                  className="text-link"
-                  type="button"
-                  data-track-id={`chat-menu-${menuItem.id}`}
-                  onClick={() => navigate(menuItem.screenId, { menuId: menuItem.id })}
-                >
-                  {menuItem.name} 화면 보기
-                </button>
-              ))}
+              <MenuReply reply={message} navigate={navigate} />
             </li>
           );
         })}

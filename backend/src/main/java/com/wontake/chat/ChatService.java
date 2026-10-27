@@ -13,7 +13,7 @@ import java.util.*;
 
 @Service
 public class ChatService {
-    /** type이 PLAN이면 plan에 작업 카드 목록이 있고, 그 밖에는 plan이 null이다. */
+    /** CONFIRM_MENU는 후보를 보여 주고 확인받는 응답이다. PLAN일 때만 plan에 작업 카드가 있다. */
     public record Reply(String type, String normalized, String reply, String menuId, List<String> menuIds,
                         List<String> steps, int notFoundStreak, String mode, boolean handoffSuggested, PlanService.Plan plan) {}
     public static final int MAX_QUESTION = 500;
@@ -82,8 +82,11 @@ public class ChatService {
             var ids = List.copyOf(result.menuIds());
             // 상담 버튼은 항상 쓸 수 있다. 범위 안 질문에서 찾지 못함 연속 2번이거나 AI가 권하면 버튼을 강조하도록 알린다(SPEC R3).
             s.notFoundStreak = ids.isEmpty() ? s.notFoundStreak + 1 : 0;
-            var reply = new Reply(ids.isEmpty() ? "NOT_FOUND" : "ANSWER", "VOICE".equals(inputType) ? result.normalized() : "",
-                result.reply(), ids.isEmpty() ? "" : ids.getFirst(), ids, List.copyOf(result.steps()), s.notFoundStreak, ai.mode(),
+            // 유사 표현의 의미 판단은 AI가 맡는다. 확인 질문의 메뉴 이름은 카탈로그에서 가져와 후보 버튼과 일치시킨다.
+            boolean confirm = result.needsConfirmation();
+            String text = confirm ? "혹시 보고 싶은 게 " + String.join(" 또는 ", ids.stream().map(id -> catalog.find(id).name()).toList()) + "인가요?" : result.reply();
+            var reply = new Reply(ids.isEmpty() ? "NOT_FOUND" : confirm ? "CONFIRM_MENU" : "ANSWER", "VOICE".equals(inputType) ? result.normalized() : "",
+                text, ids.isEmpty() ? "" : ids.getFirst(), ids, confirm ? List.of() : List.copyOf(result.steps()), s.notFoundStreak, ai.mode(),
                 result.handoff() || s.notFoundStreak >= 2, null);
             return record(s, question, inputType, reply);
         }
@@ -120,6 +123,7 @@ public class ChatService {
             || a.normalized()==null || a.normalized().length()>2000 || a.menuIds()==null || a.menuIds().size()>2
             || a.menuIds().stream().anyMatch(id -> id==null || !catalog.contains(id))
             || a.menuIds().stream().distinct().count()!=a.menuIds().size()
+            || a.needsConfirmation() && a.menuIds().isEmpty()
             || a.steps()==null || a.steps().size()>3 || a.steps().stream().anyMatch(s -> s==null || s.isBlank() || s.length()>200));
     }
 }

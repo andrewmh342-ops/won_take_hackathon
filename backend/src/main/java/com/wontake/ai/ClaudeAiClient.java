@@ -48,19 +48,23 @@ public class ClaudeAiClient implements AiClient {
                 "menuIds", Map.of("type", "array", "items", Map.of("type", "string", "enum", context.menus().stream().map(m -> m.id()).toList())),
                 "steps", Map.of("type", "array", "items", Map.of("type", "string")),
                 "handoff", Map.of("type", "boolean"),
+                "needsConfirmation", Map.of("type", "boolean"),
                 "scope", Map.of("type", "string", "enum", Answer.CHAT_SCOPES));
-            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff"), "additionalProperties", false);
+            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff", "needsConfirmation"), "additionalProperties", false);
             var value=call(context,schema,system,"low");
             // schema가 scope·handoff를 요구하지만, 빠진 응답은 범위 안·강조 없음으로 본다.
-            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope");
-            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
+            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope"), hasConfirmation=value.has("needsConfirmation");
+            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0)+(hasConfirmation?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
                 || !value.path("menuIds").isArray() || !value.path("steps").isArray() || hasHandoff && !value.path("handoff").isBoolean()
+                || hasConfirmation && !value.path("needsConfirmation").isBoolean()
                 || hasScope && !Answer.CHAT_SCOPES.contains(value.path("scope").asText())) throw invalid();
             var menuIds=new ArrayList<String>(); var steps=new ArrayList<String>();
             for (var node : value.path("menuIds")) { if (!node.isTextual()) throw invalid(); menuIds.add(node.asText()); }
             for (var node : value.path("steps")) { if (!node.isTextual()) throw invalid(); steps.add(node.asText()); }
             return new Answer(value.path("reply").asText(), value.path("normalized").asText(), menuIds, steps, value.path("handoff").asBoolean(false),
-                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE);
+                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE,
+                // 구형 응답에 확인 여부가 없으면, 메뉴가 있을 때 자동 이동 대신 사용자 확인을 받는다.
+                hasConfirmation ? value.path("needsConfirmation").asBoolean() : !menuIds.isEmpty());
     }
     @Override public ProactiveSuggestion suggest(BehaviorContext context) {
         var properties=Map.of("shouldOffer",Map.of("type","boolean"),"question",Map.of("type","string"),
