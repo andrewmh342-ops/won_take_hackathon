@@ -123,12 +123,19 @@ public class ClaudeAiClient implements AiClient {
     }
     @Override public ProactiveSuggestion suggest(BehaviorContext context) {
         var properties=Map.of("shouldOffer",Map.of("type","boolean"),"question",Map.of("type","string"),
-            "menuIds",Map.of("type","array","items",Map.of("type","string","enum",context.menus().stream().map(m->m.id()).toList())));
-        var schema=Map.of("type","object","properties",properties,"required",List.of("shouldOffer","question","menuIds"),"additionalProperties",false);
+            "menuIds",Map.of("type","array","items",Map.of("type","string","enum",context.menus().stream().map(m->m.id()).toList())),
+            "questions",Map.of("type","array","items",Map.of("type","string"))); // 작업 39: 예상 질문
+        var schema=Map.of("type","object","properties",properties,"required",List.of("shouldOffer","question","menuIds","questions"),"additionalProperties",false);
         var value=call(context,schema,behaviorSystem,"low");
-        if(!value.isObject() || value.size()!=3 || !value.path("shouldOffer").isBoolean() || !value.path("question").isTextual() || !value.path("menuIds").isArray()) throw invalid();
+        boolean hasQuestions=value.has("questions");
+        if(!value.isObject() || value.size()!=3+(hasQuestions?1:0) || !value.path("shouldOffer").isBoolean() || !value.path("question").isTextual() || !value.path("menuIds").isArray()
+            || hasQuestions && !value.path("questions").isArray()) throw invalid();
         for(var node:value.path("menuIds")) if(!node.isTextual()) throw invalid();
-        return json.treeToValue(value,ProactiveSuggestion.class);
+        var questions=new ArrayList<String>();
+        for(var node:value.path("questions")) { if(!node.isTextual()) throw invalid(); questions.add(node.asText()); }
+        var menuIds=new ArrayList<String>();
+        for(var node:value.path("menuIds")) menuIds.add(node.asText());
+        return new ProactiveSuggestion(value.path("shouldOffer").asBoolean(),value.path("question").asText(),menuIds,questions);
     }
     @Override public HandoffSummary summarize(HandoffContext context) {
         var fields=List.of("purpose","stuckPoint","triedActions","unresolved");

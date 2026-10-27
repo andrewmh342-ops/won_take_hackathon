@@ -43,7 +43,10 @@ public interface AiClient {
         }
     }
     record BehaviorContext(List<Visit> visits, List<Event> recentEvents, List<Turn> history, List<Menu> menus) {}
-    record ProactiveSuggestion(boolean shouldOffer, String question, List<String> menuIds) {}
+    /** questions: 작업 39, 방문한 분류에서 고객이 물을 법한 예상 질문(최대 3개, 서버가 다시 거른다). */
+    record ProactiveSuggestion(boolean shouldOffer, String question, List<String> menuIds, List<String> questions) {
+        public ProactiveSuggestion(boolean shouldOffer, String question, List<String> menuIds) { this(shouldOffer, question, menuIds, List.of()); }
+    }
     record HandoffContext(List<Turn> conversation, List<Event> clickTimeline, boolean clickConsent, HelpContext helpContext, List<Menu> menus,
                           List<String> planProgress) {
         public HandoffContext(List<Turn> conversation, List<Event> clickTimeline, boolean clickConsent, HelpContext helpContext, List<Menu> menus) {

@@ -215,6 +215,19 @@ class ClaudeAiClientTest {
         assertEquals("overseas-remittance",input.at("/visits/1/menuId").asText());
         assertEquals(1000,input.at("/visits/0/dwellMillis").asLong());
     }
+    // 작업 39: 역질문 응답에 예상 질문(questions)을 받는다
+    @Test void proactiveSchemaAsksForLikelyQuestionsAndParsesThem() {
+        var mapper=new JsonMapper();
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("shouldOffer",true,"question","국내로 보내세요, 해외로 보내세요?","menuIds",List.of("instant-transfer"),
+                "questions",List.of("이체 한도는 얼마예요?","해외로 보내려면 어떻게 해요?","예약 이체는 어떻게 해요?")))))));
+        var visits=List.of(new AiClient.Visit("instant-transfer","이체/출금","2026-10-27T00:00:00Z","2026-10-27T00:00:01Z",1000));
+        var result=client().suggest(new AiClient.BehaviorContext(visits,context().recentEvents(),context().history(),context().menus()));
+        assertEquals(3,result.questions().size());
+        var request=mapper.readTree(body.get());
+        assertTrue(request.at("/output_config/format/schema/properties/questions").isObject());
+        assertTrue(request.path("system").asText().contains("예상 질문"));
+    }
     String planResponse(String text) { return new JsonMapper().writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",text)))); }
     AiClient.PlanContext planContext() { return new AiClient.PlanContext("월세 내고 엄마한테 30만원",List.of(new AiClient.Payee("엄마","CONTACT",List.of("엄마","어머니")))); }
     @Test void planUsesItsOwnPromptAndReadsNullAmountAsUnsaid() {

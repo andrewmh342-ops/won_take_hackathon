@@ -8,10 +8,19 @@ import java.util.regex.Pattern;
 public class FakeAiClient implements AiClient {
     private static final List<String> FINANCE_WORDS = List.of("앱", "은행", "계좌", "통장", "이체", "송금", "출금", "입금", "한도", "잔액", "내역",
         "인증", "비밀번호", "로그인", "기기", "증명", "서류", "환전", "환율", "외화", "카드", "대출", "예금", "적금", "수수료", "상담", "돈", "오류", "안 돼", "안돼");
+    private static final Map<String, List<String>> LIKELY = Map.of(
+        "이체/출금", List.of("이체 한도는 얼마예요?", "해외로 돈을 보내려면 어떻게 해요?", "예약 이체는 어떻게 해요?"),
+        "계좌조회/관리", List.of("내 계좌 잔액을 보고 싶어요", "최근 거래내역은 어디서 봐요?", "계좌 비밀번호를 바꾸고 싶어요"),
+        "카드", List.of("카드를 잃어버렸어요", "해외에서 카드를 쓰려면요?", "자동결제를 다른 카드로 옮기고 싶어요"),
+        "환전", List.of("엔화 환율은 얼마예요?", "환전은 어디서 받아요?", "여행자 보험은 어떻게 가입해요?"),
+        "인증/보안", List.of("인증서를 새로 받고 싶어요", "비밀번호를 잊어버렸어요", "새 휴대폰에서 로그인하려면요?"),
+        "증명서/서류", List.of("잔액증명서를 떼고 싶어요", "거래내역서는 어디서 받아요?", "증명서를 파일로 받을 수 있나요?"));
     @Override public ProactiveSuggestion suggest(BehaviorContext context) {
         String category=context.visits().getLast().category();
         String question=category.equals("이체/출금") ? "이체나 송금 메뉴를 찾는 데 도움이 필요하세요?" : category+" 메뉴를 찾는 데 도움이 필요하세요?";
-        return new ProactiveSuggestion(true,question,context.visits().stream().map(Visit::menuId).distinct().limit(2).toList());
+        // 작업 39: 연결 테스트용 예상 질문 3개(분류별 고정). 실제 생성은 CLAUDE 모드에서 한다.
+        var questions=LIKELY.getOrDefault(category,List.of(category+" 메뉴는 어디 있어요?",category+"에서 막혔어요",category+" 하는 방법 알려 주세요"));
+        return new ProactiveSuggestion(true,question,context.visits().stream().map(Visit::menuId).distinct().limit(2).toList(),questions);
     }
     /** 연결 테스트용 결정적 플랜. 실제 순서 판단은 CLAUDE 모드에서 한다. 보유 여부 걸러내기는 서버(PlanService)가 한다. */
     private static AiPlan plan(Context c) {

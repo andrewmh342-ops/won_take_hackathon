@@ -12,7 +12,19 @@ import java.util.concurrent.ConcurrentHashMap;
 /** 규칙은 분석 계기만 감지한다. 도움 제안 여부·역질문은 AiClient가 결정한다. */
 @Service
 public class BehaviorService {
-    public record Bubble(String contextId, String screenId, String category, String question, List<String> menuIds, String mode) {}
+    /** questions: 작업 39, 대화 화면에서 큰 버튼으로 보여 줄 예상 질문(최대 3개). */
+    public record Bubble(String contextId, String screenId, String category, String question, List<String> menuIds, String mode, List<String> questions) {
+        public Bubble(String contextId, String screenId, String category, String question, List<String> menuIds, String mode) {
+            this(contextId, screenId, category, question, menuIds, mode, List.of());
+        }
+    }
+    static final int MAX_QUESTIONS = 3, MAX_QUESTION_LENGTH = 60;
+    /** 빈 질문·60자 초과·중복은 버리고 앞의 3개만 쓴다(SPEC R1 예상 질문). */
+    static List<String> likely(List<String> raw) {
+        if (raw == null) return List.of();
+        return raw.stream().filter(Objects::nonNull).map(String::trim).filter(q -> !q.isEmpty() && q.length() <= MAX_QUESTION_LENGTH)
+            .distinct().limit(MAX_QUESTIONS).toList();
+    }
     private record Active(String menuId, String category, long entered) {}
     private static class Analysis {
         final String id=UUID.randomUUID().toString();
@@ -93,7 +105,7 @@ public class BehaviorService {
         catch(RuntimeException e) { return null; } // R1 실패 시 팝업을 만들지 않는다. 가짜 제안으로 바꾸지 않는다.
         synchronized(state) {
             if(state.pending!=analysis || !Boolean.TRUE.equals(store.consent(userId)) || store.never(userId) || !valid(answer)) return null;
-            analysis.bubble=new Bubble(analysis.id,analysis.screenId,analysis.input.visits().getLast().category(),answer.question(),List.copyOf(answer.menuIds()),ai.mode());
+            analysis.bubble=new Bubble(analysis.id,analysis.screenId,analysis.input.visits().getLast().category(),answer.question(),List.copyOf(answer.menuIds()),ai.mode(),likely(answer.questions()));
             return analysis.bubble;
         }
     }
