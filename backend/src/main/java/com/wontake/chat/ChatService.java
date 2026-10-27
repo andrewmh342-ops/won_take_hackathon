@@ -47,13 +47,16 @@ public class ChatService {
             // 범위 밖 질문이 이어진 세션은 AI를 부르지 않는다(크레딧 보호).
             if (guard.blocked(sessionId)) return record(s, question, inputType, outOfScope(s, BLOCKED_REPLY));
             guard.chat(sessionId);
-            var turns = history(s.messages());
+            // 작업 25: AI로 보내는 질문·이전 대화·행동 기록·말풍선 맥락은 가명화한 사본이다(대화 기록은 원문).
+            var red = plans.redactor();
+            var turns = red.turns(userId, sessionId, history(s.messages()));
             var allEvents = Boolean.TRUE.equals(store.consent(userId)) ? s.events() : List.<DemoStore.Event>of();
-            var events = allEvents.subList(Math.max(0, allEvents.size()-20), allEvents.size());
-            var help=behavior==null?null:behavior.context(userId,sessionId,contextId);
+            var events = red.events(userId, sessionId, allEvents.subList(Math.max(0, allEvents.size()-20), allEvents.size()));
+            var help = red.help(userId, sessionId, behavior==null?null:behavior.context(userId,sessionId,contextId));
+            String aiQuestion = red.text(userId, sessionId, question.trim());
             AiClient.Answer result;
             // R5: 가명화된 고객 상태와 블록 사전을 같은 호출에 넣는다(추가 호출 없음).
-            var context = new AiClient.Context(question.trim(), inputType, turns, events, catalog.all(), help,
+            var context = new AiClient.Context(aiQuestion, inputType, turns, events, catalog.all(), help,
                 plans.shape(userId, sessionId), plans.blocksForAi());
             try { result = ai.answer(context); }
             catch (ApiException e) {
@@ -70,8 +73,10 @@ public class ChatService {
             Plan plan = result.hasPlan() ? plans.build(userId, sessionId, result.plan()) : null;
             if (plan != null) {
                 // 플랜이 있으면 찾지 못함이 아니다. 블록으로 못 하는 일이 있으면 상담 버튼을 강조한다.
+                plan.question = question.trim();
+                plan.aiInput = aiInput(aiQuestion, plan.aiInput);
                 s.notFoundStreak = 0;
-                var reply = new Reply("PLAN", "VOICE".equals(inputType) ? result.normalized() : "", result.reply(), ids.isEmpty() ? "" : ids.getFirst(), ids,
+                var reply = new Reply("PLAN", "VOICE".equals(inputType) ? result.normalized() : "", shortReply(result.reply()), ids.isEmpty() ? "" : ids.getFirst(), ids,
                     List.of(), 0, ai.mode(), result.handoff() || !plan.unhandled.isEmpty(), plan);
                 return record(s, question, inputType, reply);
             }
@@ -82,6 +87,73 @@ public class ChatService {
                 result.handoff() || s.notFoundStreak >= 2, null);
             return record(s, question, inputType, reply);
         }
+    }
+    static final int PLAN_REPLY_MAX = 60;
+    /** 작업 32: 플랜이 있으면 말풍선은 한 문장(60자 이내). 넘으면 첫 문장만, 첫 문장도 넘으면 59자 + "…". */
+    static String shortReply(String reply) {
+        String r = Objects.toString(reply, "").trim();
+        if (r.length() <= PLAN_REPLY_MAX) return r;
+        var m = java.util.regex.Pattern.compile("^.*?[.?!。](?=\\s|$)").matcher(r);
+        if (m.find() && m.end() <= PLAN_REPLY_MAX) return m.group();
+        return r.substring(0, PLAN_REPLY_MAX - 1) + "…";
+    }
+
+    /** 작업 32: 마무리 카드의 [추가로 할 일 찾기]. 바뀐 상태로 AI가 한 번 더 판단한다. */
+    public Plan review(String userId, String sessionId, String planId) {
+        return replan(userId, sessionId, plans.get(userId, sessionId, planId));
+    }
+
+    static final String REPLAN_FAILED = "다시 판단하지 못했어요. 지금까지 확인한 내용 기준으로 정리했어요.";
+
+    /** 작업 23: 고객이 분실 카드를 확인하면 카드 블록을 다시 구성하고, AI가 전체 상황을 다시 판단한다. */
+    public Plan confirmCards(String userId, String sessionId, String planId, List<String> cardRefs) {
+        var plan = plans.confirmCards(userId, sessionId, planId, cardRefs);
+        return replan(userId, sessionId, plan);
+    }
+
+    /** 작업 29: 고객이 정보 확인 블록에 답하면 저장하고 AI가 다시 판단한다. */
+    public Plan answer(String userId, String sessionId, String planId, Integer index, String value) {
+        var plan = plans.answer(userId, sessionId, planId, index, value);
+        return replan(userId, sessionId, plan);
+    }
+
+    /**
+     * 중요한 상태가 바뀌었을 때(카드 확인·정보 입력) AI를 한 번 더 불러 같은 플랜을 갱신한다. 끝낸 업무는 상태로 유지된다.
+     * 사용량 상한에 포함하며, 실패하면 이전 플랜을 그대로 두고 알린다(가짜 플랜으로 바꾸지 않음).
+     */
+    public Plan replan(String userId, String sessionId, Plan plan) {
+        var s = store.session(userId, sessionId);
+        synchronized (s) {
+            plan.notice = "";
+            try {
+                if (guard.blocked(sessionId)) throw new ApiException(429, "CHAT_BLOCKED", "잠시 AI 안내를 멈췄어요.");
+                guard.chat(sessionId);
+                var red = plans.redactor();
+                var allEvents = Boolean.TRUE.equals(store.consent(userId)) ? s.events() : List.<DemoStore.Event>of();
+                var events = red.events(userId, sessionId, allEvents.subList(Math.max(0, allEvents.size()-20), allEvents.size()));
+                String aiQuestion = red.text(userId, sessionId, plan.question);
+                var done = plan.blocks.stream().filter(b -> !"PENDING".equals(b.status)).map(b -> b.blockId + (b.targetRef.isEmpty() ? "" : "@" + b.targetRef)).toList();
+                var context = new AiClient.Context(aiQuestion, "TEXT", red.turns(userId, sessionId, history(s.messages())), events, catalog.all(), null,
+                    plans.shape(userId, sessionId), plans.blocksForAi(), new AiClient.PlanState(plan.confirmedCards, done));
+                var result = ai.answer(context);
+                if (result == null || result.outOfScope() || !result.hasPlan()) plan.notice = REPLAN_FAILED;
+                else {
+                    plans.rebuild(userId, sessionId, plan.planId, result.plan());
+                    plan.aiInput = aiInput(aiQuestion, plan.aiInput);
+                }
+            } catch (ApiException e) {
+                plan.notice = REPLAN_FAILED;
+            }
+            return plan;
+        }
+    }
+
+    /** 플랜의 "AI에 보낸 정보": 가명화된 질문과 고객 상태 모양. */
+    private static Map<String, Object> aiInput(String question, Object customer) {
+        var out = new LinkedHashMap<String, Object>();
+        out.put("question", question);
+        out.put("customer", customer);
+        return out;
     }
     private Reply outOfScope(DemoStore.Session s, String text) {
         return new Reply("OUT_OF_SCOPE", "", text, "", List.of(), List.of(), s.notFoundStreak, ai.mode(), false, null);

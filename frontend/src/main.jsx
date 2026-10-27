@@ -21,6 +21,7 @@ import TravelCardScreen from './screens/TravelCardScreen.jsx';
 import FxRateScreen from './screens/FxRateScreen.jsx';
 import ExchangeApplyScreen from './screens/ExchangeApplyScreen.jsx';
 import TravelInsuranceScreen from './screens/TravelInsuranceScreen.jsx';
+import PlanScreen from './screens/PlanScreen.jsx';
 import { registerMenuNavigation, highlightMenu } from './components/MenuList.jsx';
 import { useMock, getHealth } from './api/client.js';
 import './styles/tokens.css';
@@ -49,6 +50,8 @@ const screens = {
   'fx-rate': FxRateScreen,
   'exchange-apply': ExchangeApplyScreen,
   'travel-insurance': TravelInsuranceScreen,
+  // 작업 32: 원테이크 화면(가로 단계 탭)
+  plan: PlanScreen,
 };
 function App() {
   const { screen, key, navigate } = useNavigation();

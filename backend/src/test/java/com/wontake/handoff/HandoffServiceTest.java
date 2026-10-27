@@ -86,4 +86,24 @@ class HandoffServiceTest {
         assertEquals("RECORDED", draft.get("source"));
         assertEquals("FAKE", draft.get("mode"));
     }
+
+    // 작업 25: 상담 요약 입력도 가명화하고, 상담사에게 보이는 대화 원문은 그대로 둔다
+    @Test void 요약_입력은_가명화하고_원문은_그대로다() {
+        store.consent("a", true);
+        store.event("a", "sa", "SEARCH", "menu", "search", "4821 분실");
+        var profiles = new com.wontake.assist.ProfileStore(store);
+        var guard = new com.wontake.session.UsageGuard();
+        var plans = new com.wontake.assist.PlanService(store, new com.wontake.assist.BlockCatalog(), profiles, guard);
+        new ChatService(store, catalog, new FakeAiClient(), null, guard, plans).chat("a", "sa", "이체할 때 넷플릭스 55,000원이 1002-123-456789로 나갔어요", "TEXT");
+        var seen = new AtomicReference<AiClient.HandoffContext>();
+        AiClient ai = new AiClient() {
+            @Override public Answer answer(Context c) { throw new UnsupportedOperationException(); }
+            @Override public HandoffSummary summarize(HandoffContext c) { seen.set(c); return new HandoffSummary("확인", "확인", "확인", "확인"); }
+        };
+        var draft = new HandoffService(store, catalog, ai, null, guard, plans).draft("a", "sa");
+        var sent = seen.get().conversation().getFirst().message();
+        assertEquals("이체할 때 ap-1 [금액]이 [번호]로 나갔어요", sent);
+        assertTrue(seen.get().clickTimeline().stream().anyMatch(e -> "card-1 분실".equals(e.query())));
+        assertTrue(draft.toString().contains("넷플릭스 55,000원이 1002-123-456789로"));
+    }
 }

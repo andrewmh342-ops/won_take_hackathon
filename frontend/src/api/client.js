@@ -56,6 +56,16 @@ export const postHandoff = (summary) =>
 // R5 원테이크 플랜: 블록 실행(가상 상태 변경)과 시연 고객 A·B 전환
 export const executePlan = (planId, index, options) =>
   useMock ? mock.executePlan(planId, index) : request('/plan/execute', 'POST', { ...identity(), planId, index, options });
+// R5 목표 중심: 분실 카드 확인(작업 23)과 정보 확인 블록 답변(작업 29). 둘 다 AI가 다시 판단한 플랜을 돌려준다.
+export const confirmCards = (planId, cardRefs) =>
+  useMock ? mock.confirmCards(planId, cardRefs) : request('/plan/confirm-cards', 'POST', { ...identity(), planId, cardRefs });
+export const answerPlan = (planId, index, value) =>
+  useMock ? mock.answerPlan(planId, index, value) : request('/plan/answer', 'POST', { ...identity(), planId, index, value });
+// 작업 32: 원테이크 화면을 다시 열 때 현재 플랜, [추가로 할 일 찾기](AI 재판단)
+export const getPlan = (planId) =>
+  useMock ? mock.getPlan(planId) : request(`/plan?${new URLSearchParams({ ...identity(), planId })}`);
+export const reviewPlan = (planId) =>
+  useMock ? mock.reviewPlan(planId) : request('/plan/review', 'POST', { ...identity(), planId });
 export const setDemoProfile = (profileId) =>
   useMock ? Promise.resolve() : request('/demo/profile', 'PUT', { ...identity(), profileId });
 // R5 업무 화면: 화면용 가상 상태와 처리(실제 거래 없음)

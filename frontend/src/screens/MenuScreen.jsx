@@ -22,7 +22,7 @@ export default function MenuScreen() {
   const [targetCategory, setTargetCategory] = useState(null);
   const [demoProfile, setDemoProfileState] = useState('');
 
-  // R5 시연용: 가상 고객 A·B를 바꿔 같은 질문에 다른 플랜이 조립되는 것을 보여 준다(개발 빌드에서만).
+  // R5 시연용: 가상 고객 A·B·C를 바꿔 같은 질문에 다른 플랜이 조립되는 것을 보여 준다(개발 빌드에서만).
   const switchProfile = async (profileId) => {
     try {
       await setDemoProfile(profileId);
@@ -84,6 +84,7 @@ export default function MenuScreen() {
           <p>개발 확인: 시연 고객 바꾸기 {demoProfile && <strong>(현재 {demoProfile})</strong>}</p>
           <button className="secondary" onClick={() => switchProfile('A')}>고객 A (트래블카드 있음)</button>
           <button className="secondary" onClick={() => switchProfile('B')}>고객 B (트래블카드 없음)</button>
+          <button className="secondary" onClick={() => switchProfile('C')}>고객 C (트래블카드 1장뿐)</button>
         </div>
       )}
     </div>

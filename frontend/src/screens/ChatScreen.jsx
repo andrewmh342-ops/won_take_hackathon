@@ -1,6 +1,6 @@
 // 담당: 역할 2 — AI 대화, 음성 질문, 상담 인계 확인
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getHandoffSummary, postChat, postHandoff, getHistory, executePlan } from '../api/client.js';
+import { getHandoffSummary, postChat, postHandoff, getHistory } from '../api/client.js';
 import { cancelRecognition, startRecognition, stopRecognition } from '../audio/speech.js';
 import Popup from '../components/Popup.jsx';
 import PlanCard from '../components/PlanCard.jsx';
@@ -23,7 +23,7 @@ const summaryFields = [
 ];
 
 export default function ChatScreen() {
-  const { params, navigate, setHandoffHint, handoffPending, setHandoffPending, openHandoff } = useNavigation();
+  const { params, navigate, setHandoffHint, handoffPending, setHandoffPending } = useNavigation();
   const [messages, setMessages] = useState([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [historyAttempt, setHistoryAttempt] = useState(0);
@@ -35,8 +35,6 @@ export default function ChatScreen() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [handoffBusy, setHandoffBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
-  // R5: 플랜 블록 처리 중 여부
-  const [planBusy, setPlanBusy] = useState(false);
   const threadEnd = useRef(null);
   const initialQuestionSent = useRef(false);
   const mounted = useRef(true);
@@ -162,29 +160,8 @@ export default function ChatScreen() {
     }
   }
 
-  // R5: 블록 실행 결과로 같은 플랜을 다시 그린다(대화 기록의 플랜도 서버에서 같은 상태).
-  function updatePlan(next) {
-    setMessages((current) => current.map((message) => (message.plan?.planId === next.planId ? { ...message, plan: next } : message)));
-  }
-  // R5: 블록을 누르면 대상이 미리 선택된 업무 화면으로 간다. 화면에서 처리하면 같은 가상 상태로 플랜이 완료된다.
-  // 화면을 열면 끝나는 블록(확인·안내·상담)은 열어 봄을 먼저 기록한다.
-  async function runBlock(plan, block) {
-    setPlanBusy(true);
-    setError('');
-    try {
-      if (block.status === 'PENDING' && block.type !== 'ACTION') updatePlan(await executePlan(plan.planId, block.index));
-      if (block.type === 'HANDOFF') {
-        openHandoff();
-        return;
-      }
-      const target = findMenu(block.menuId);
-      if (target) navigate(target.screenId, { menuId: target.id, planId: plan.planId, index: block.index, targetRef: block.targetRef, param: block.param });
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setPlanBusy(false);
-    }
-  }
+  // 작업 32: 플랜은 원테이크 화면(가로 단계 탭)에서 한 단계씩 진행한다. 대화에는 요약 카드만 둔다.
+  const openPlan = (plan) => navigate('plan', { planId: plan.planId });
 
   async function requestHandoff() {
     setError('');
@@ -229,10 +206,12 @@ export default function ChatScreen() {
 
   return (
     <section className="page chat-page">
-      <BackButton />
-      <p className="eyebrow">WON TAKE ASSISTANT</p>
-      <h1>AI 대화</h1>
-      <p className="muted">찾는 메뉴나 막힌 상황을 편하게 말씀해 주세요.</p>
+      {/* 스크롤해도 뒤로 가기는 위에 고정한다(작업 32). 상담 버튼은 상단 바에 늘 있다. */}
+      <header className="chat-header">
+        <BackButton />
+        <strong>AI 상담</strong>
+      </header>
+      {messages.length === 0 && <p className="chat-intro">막힌 상황을 편하게 말씀해 주세요.<br />예: 카드를 잃어버렸어요</p>}
       {params.helpQuestion && (
         <div className="suggestion-list">
           <p><strong>먼저 제안한 도움</strong></p>
@@ -297,25 +276,25 @@ export default function ChatScreen() {
                   {message.normalized}
                 </p>
               )}
-              {message.role === 'ASSISTANT' && message.steps.length > 0 && (
+              {message.role === 'ASSISTANT' && !message.plan && message.steps.length > 0 && (
                 <ol className="answer-steps">
                   {message.steps.map((step, stepIndex) => (
                     <li key={`step-${stepIndex}`}>{step}</li>
                   ))}
                 </ol>
               )}
-              {menuItems.map((menuItem) => (
+              {!message.plan && menuItems.map((menuItem) => (
                 <button
                   key={menuItem.id}
-                  className="text-link"
+                  className="menu-go"
                   type="button"
                   data-track-id={`chat-menu-${menuItem.id}`}
                   onClick={() => navigate(menuItem.screenId, { menuId: menuItem.id })}
                 >
-                  {menuItem.name} 화면 보기
+                  {menuItem.name} 바로 가기 <span aria-hidden="true">›</span>
                 </button>
               ))}
-              {message.plan && <PlanCard plan={message.plan} busy={planBusy} onRun={runBlock} />}
+              {message.plan && <PlanCard plan={message.plan} onOpen={openPlan} />}
             </li>
           );
         })}
@@ -347,11 +326,7 @@ export default function ChatScreen() {
         </p>
       )}
 
-      <p className="info-note">
-        질문과 최근 대화는 AI 메뉴 안내에 사용해요. 행동 기록은 동의한 경우에만 함께 사용해요.{' '}
-        마이크를 누르면 Chrome 음성 인식 서비스에서 음성이 처리될 수 있어요.
-        인터넷 연결이 필요하며, 인식이 안 되면 글자로 입력해 주세요.
-      </p>
+      <p className="chat-note">질문은 AI 안내에만 써요. 마이크는 Chrome 음성 인식을 써요.</p>
       {handoffHighlighted && (
         <p className="handoff-hint" role="status">
           답을 찾기 어려우면 위의 <strong>상담</strong> 버튼으로 지금까지 내용을 상담사에게 넘길 수 있어요.

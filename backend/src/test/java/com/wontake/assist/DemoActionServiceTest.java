@@ -37,15 +37,39 @@ class DemoActionServiceTest {
         assertTrue(e.getMessage().contains("분실신고"));
     }
 
-    @Test void 재발급_전_구독_변경은_409이고_해지는_된다() {
+    // 작업 24: 구독은 고객이 고른 다른 보유 카드로 옮긴다(재발급을 기다리지 않음)
+    @Test void 옮길_카드를_안_고르면_400() {
         var e = fails("SUBSCRIPTION", "ref", "card-1", "choices", Map.of("ap-1", "SWITCH"));
-        assertEquals("NOT_REISSUED", e.code);
+        assertEquals(400, e.status);
+        assertEquals("옮길 카드를 골라 주세요.", e.getMessage());
+        assertEquals("ACTIVE", card("card-1").autoPayments.get(0).status);
+    }
+
+    @Test void 같은_카드_정지된_카드_갖지_않은_카드로는_옮길_수_없다() {
+        act("CARD_STOP", "ref", "card-2");
+        for (var to : List.of("card-1", "card-2", "card-9")) {
+            var e = fails("SUBSCRIPTION", "ref", "card-1", "choices", Map.of("ap-1", "SWITCH"), "toRef", to);
+            assertEquals(400, e.status, to);
+            assertEquals("지금 쓸 수 있는 다른 카드를 골라 주세요.", e.getMessage());
+        }
+        assertEquals("ACTIVE", card("card-1").autoPayments.get(0).status);
+    }
+
+    @Test void 사용_중인_다른_카드로_옮기면_옮긴_카드에_표시된다() {
+        var view = act("SUBSCRIPTION", "ref", "card-1", "choices", Map.of("ap-1", "SWITCH", "ap-2", "CANCEL"), "toRef", "card-3");
+        var from = card("card-1").autoPayments;
+        assertEquals("SWITCHED", from.get(0).status);
+        assertEquals("card-3", from.get(0).movedTo);
+        assertEquals("CANCELLED", from.get(1).status);
+        var moved = card("card-3").autoPayments.stream().filter(a -> a.id.equals("ap-1")).findFirst().orElseThrow();
+        assertEquals("ACTIVE", moved.status);
+        assertEquals("card-1", moved.movedFrom);
+        assertTrue(view.toString().contains("movedFrom=card-1"));
+    }
+
+    @Test void 구독_해지는_언제든_된다() {
         act("SUBSCRIPTION", "ref", "card-1", "choices", Map.of("ap-2", "CANCEL"));
         assertEquals("CANCELLED", card("card-1").autoPayments.get(1).status);
-        act("CARD_STOP", "ref", "card-1");
-        act("CARD_REISSUE", "ref", "card-1");
-        act("SUBSCRIPTION", "ref", "card-1", "choices", Map.of("ap-1", "SWITCH"));
-        assertEquals("SWITCHED", card("card-1").autoPayments.get(0).status);
     }
 
     @Test void 이미_정지된_카드와_이미_해지한_구독은_그대로다() {
@@ -94,6 +118,25 @@ class DemoActionServiceTest {
         act("TRAVEL_CARD_APPLY", "account", "acc-1", "receive", "MAIL");
         assertNotNull(profiles.state("a", "sa").travelCardApplication);
         assertEquals(400, fails("TRAVEL_CARD_APPLY", "account", "acc-9", "receive", "MAIL").status); // 없는 계좌
+    }
+
+    @Test void 트래블카드가_정지되면_새로_신청할_수_있다() {
+        act("CARD_STOP", "ref", "card-2");
+        act("TRAVEL_CARD_APPLY", "account", "acc-1", "receive", "MAIL");
+        assertNotNull(profiles.state("a", "sa").travelCardApplication);
+        @SuppressWarnings("unchecked") var cards = (List<Map<String, Object>>) demo.state("a", "sa").get("cards");
+        assertEquals(false, cards.get(1).get("usable"));
+        assertEquals(false, demo.state("a", "sa").get("hasUsableTravelCard"));
+    }
+
+    @Test void 분실_카드_확인_전에는_플랜에서_온_화면_처리를_막는다() {
+        var p = plans.build("a", "sa", new AiPlan(List.of("카드 분실"), List.of(new AiBlock("card-lost-report", "card-1", "", "차단")), List.of(), ""));
+        assertEquals("PLAN_CARD_UNCONFIRMED", fails("CARD_STOP", "ref", "card-1", "planId", p.planId).code);
+        plans.confirmCards("a", "sa", p.planId, List.of("card-1"));
+        act("CARD_STOP", "ref", "card-1", "planId", p.planId);
+        assertEquals("STOPPED", card("card-1").status);
+        act("CARD_STOP", "ref", "card-3"); // 플랜 없이 메뉴로 직접 들어가면 고객이 고른 카드라 바로 처리
+        assertEquals("STOPPED", card("card-3").status);
     }
 
     @Test void 플랜_블록에서_화면으로_가서_처리하면_완료된다() {
