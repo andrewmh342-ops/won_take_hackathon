@@ -2742,3 +2742,257 @@ input::placeholder {
   line-height: 1.8;
   color: var(--warning);
 }
+
+/* 우리WON뱅킹 구조의 홈 — 대표 계좌 카드, 빠른 메뉴, WON TAKE 배너 (가상 데이터) */
+.wordmark b {
+  font-weight: 900;
+  color: var(--primary);
+}
+.wordmark {
+  color: var(--text);
+  font-size: 22px;
+}
+.won-home .welcome {
+  padding: 0 2px 14px;
+}
+.won-home .welcome h1 {
+  font-size: 22px;
+}
+.account-card {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px 20px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 14px 30px #2463eb33;
+}
+.account-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.account-card strong {
+  font-size: 15px;
+  display: block;
+}
+.account-card small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+.account-card.logged-out p {
+  font-size: 12px;
+  opacity: 0.85;
+  margin: 8px 0 4px;
+}
+.text-link.on-blue {
+  color: #ffffffcc;
+}
+.account-balance {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  margin: 18px 0 16px;
+}
+.account-balance span {
+  font-size: 18px;
+  margin-left: 2px;
+}
+.account-actions {
+  display: flex;
+  gap: 8px;
+}
+.account-actions button {
+  flex: 1;
+  background: #ffffff26;
+  color: var(--surface);
+  border-radius: 11px;
+  padding: 11px 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.account-actions button:hover {
+  background: #ffffff40;
+}
+.quick-section {
+  padding: 20px 12px;
+}
+.shortcut-icon.robot {
+  background: var(--primary-soft);
+}
+.take-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  background: var(--hero);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  margin-bottom: 16px;
+}
+.take-banner:hover {
+  background: var(--primary-soft);
+}
+.take-banner-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+}
+.take-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.take-banner-text small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--primary);
+}
+.take-banner-text strong {
+  font-size: 15px;
+}
+.take-banner-text > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.take-banner-arrow {
+  font-size: 26px;
+  color: var(--primary);
+}
+.benefit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.benefit-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 0;
+}
+.benefit-list strong {
+  display: block;
+  font-size: 14px;
+}
+.benefit-list small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.benefit-dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+.ai-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+}
+
+/* AI 길잡이 진입 스플래시 (약 1초) */
+.splash-phone {
+  background: var(--primary);
+}
+.splash {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--surface);
+  background: radial-gradient(circle at 50% 38%, #3b78f5 0%, var(--primary) 45%, var(--primary-dark) 100%);
+  animation: splash-in 0.3s ease-out;
+}
+.splash-mark {
+  width: 112px;
+  height: 112px;
+  border-radius: 34px;
+  background: var(--surface);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 18px 40px #0c2a6e55;
+  animation: splash-pop 0.5s ease-out;
+}
+.splash-word {
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  margin-top: 10px;
+}
+.splash-word strong {
+  font-weight: 900;
+}
+.splash-copy {
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  opacity: 0.85;
+}
+.splash-bar {
+  width: 120px;
+  height: 3px;
+  border-radius: 2px;
+  background: #ffffff33;
+  position: relative;
+  overflow: hidden;
+  margin-top: 18px;
+}
+.splash-bar:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  transform-origin: left;
+  animation: splash-load 1s linear forwards;
+}
+.splash-foot {
+  position: absolute;
+  bottom: 34px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  opacity: 0.6;
+}
+@keyframes splash-in {
+  from { opacity: 0; }
+}
+@keyframes splash-pop {
+  from { transform: scale(0.8); opacity: 0; }
+}
+@keyframes splash-load {
+  from { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash, .splash-mark, .splash-bar:after {
+    animation: none;
+  }
+}
+/* 홈 대표 계좌 카드 안의 잔액 로딩·실패 안내 */
+.account-status {
+  margin: 16px 0;
+}
+.account-status p {
+  color: #ffffffcc;
+  font-size: 13px;
+}
+.account-status .secondary {
+  margin-top: 8px;
+}
