@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { useNavigation } from '../navigation/index.jsx';
 import SearchBar from '../components/SearchBar.jsx';
 import { useAuth, logout } from '../session/auth.js';
-import { totalBalance } from '../data/accounts.js';
+import { useAccounts } from '../data/useAccounts.js';
+import AccountStatus from '../components/AccountStatus.jsx';
 
 // [이름, 화면, 아이콘, 메뉴 id]
 const shortcuts = [
@@ -20,6 +21,7 @@ const shortcuts = [
 export default function HomeScreen() {
   const { navigate } = useNavigation();
   const user = useAuth();
+  const accountState = useAccounts(Boolean(user));
   const [query, setQuery] = useState('');
   return (
     <div className="home">
@@ -63,7 +65,8 @@ export default function HomeScreen() {
         <section className="login-card logged-in">
           <div>
             <strong>{user.name}님의 전체 잔액</strong>
-            <p className="balance">{totalBalance.toLocaleString('ko-KR')}원</p>
+            <AccountStatus {...accountState} />
+            {accountState.data && <p className="balance">{accountState.data.totalBalance.toLocaleString('ko-KR')}원</p>}
           </div>
           <div className="login-actions">
             <button

@@ -13,7 +13,7 @@ import java.util.*;
  * 한 문장 → 작업 카드 목록(기획서 차별점 1). AI는 받는 곳과 금액만 고르고, 이체 종류, 위험도, 예상 잔액은 서버가 정한다.
  * 따로 된 API 없이 채팅(ChatService)이 받는 사람을 말한 이체 요청을 알아챘을 때만 부른다(2026-10-27 사용자 결정).
  * 입력 검사, 범위 밖 횟수와 차단, 사용량 세기는 채팅(ChatService, UsageGuard)만 한다. 여기서는 UsageGuard를 쓰지 않는다.
- * 고객이 가상 비밀번호로 승인하면 가상 생활통장 잔액(Balances)만 줄인다. 실제 돈은 움직이지 않는다.
+ * 고객이 가상 비밀번호로 승인하면 Balances가 출금·내 계좌 입금을 함께 반영한다. 실제 돈은 움직이지 않는다.
  * 승인할 때 AI는 부르지 않는다. AI는 목록만 준비하고, 비밀번호와 승인 결과는 보지 않는다(승인은 대화 기록에도 남기지 않는다).
  */
 @Service
@@ -127,7 +127,7 @@ public class PlanService {
             var checked = build(planId, userId, plan.tasks().stream().map(t -> task(t.order(), t.target(), said(t), t.memo())).toList());
             if (!checked.canConfirm()) throw new ApiException(409, checked.blockers().getFirst(), BLOCKED_MESSAGE);
             // 다른 세션에서 같은 고객이 먼저 승인했을 수 있어, 잔액은 빼는 순간에 한 번 더 확인한다.
-            long after = balances.withdraw(userId, checked.totalAmount());
+            long after = balances.transfer(userId, checked.totalAmount(), checked.tasks());
             s.plans.remove(planId);
             s.confirmedPlans.add(planId);
             return new Confirmation(planId, "CONFIRMED", checked.totalAmount(), after + checked.totalAmount(), after);

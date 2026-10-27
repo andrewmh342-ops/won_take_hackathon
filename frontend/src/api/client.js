@@ -42,6 +42,7 @@ export const confirmPlan = (planId, password) =>
   useMock ? mock.confirmPlan(planId) : request('/plan/confirm', 'POST', { ...identity(), planId, password });
 export const getHistory = () => useMock ? mock.getHistory() : request(`/chat/history?${new URLSearchParams(identity())}`);
 export const getHealth = () => useMock ? Promise.resolve({ aiMode: 'FRONTEND_MOCK' }) : request('/health');
+export const getAccounts = () => useMock ? mock.getAccounts() : request(`/accounts?userId=${encodeURIComponent(getUserId())}`);
 export const analyzeHelp = (contextId) => useMock ? Promise.resolve({ bubble: null }) : request('/assist/analyze', 'POST', { ...identity(), contextId });
 export const postVoice = (blob) =>
   useMock

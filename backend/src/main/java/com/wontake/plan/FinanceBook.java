@@ -6,7 +6,7 @@ import java.util.*;
 
 /**
  * 데모 고객 한 명의 내 계좌와 받는 곳 목록(data/finance.json). 실제 계좌가 아니며, 작업 목록을 만들 때 읽기만 한다.
- * 이 파일이 주인이다. 화면의 계좌와 잔액(frontend/src/data/accounts.js)은 accounts.test.js가 이 파일과 대조한다.
+ * 이 파일이 주인이다. 프론트 모의 모드 초기값(frontend/src/data/accounts.js)은 accounts.test.js가 이 파일과 대조한다.
  */
 @Component
 public class FinanceBook {
@@ -18,11 +18,13 @@ public class FinanceBook {
     public record Data(List<MyAccount> myAccounts, List<Contact> contacts) {}
     public static final String MY_BANK = "WON";
     private final long balance;
+    private final List<MyAccount> myAccounts;
     private final List<Account> accounts;
     public FinanceBook() {
         try (var input = getClass().getResourceAsStream("/data/finance.json")) {
             if (input == null) throw new IllegalStateException("가상 계좌 데이터가 없습니다.");
             var data = new JsonMapper().readValue(input, Data.class);
+            myAccounts = List.copyOf(data.myAccounts());
             var withdrawal = data.myAccounts().stream().filter(MyAccount::withdrawal).toList();
             if (withdrawal.size() != 1) throw new IllegalStateException("출금 계좌는 하나여야 합니다.");
             balance = withdrawal.getFirst().balance();
@@ -39,6 +41,7 @@ public class FinanceBook {
     }
     /** 출금 계좌의 잔액이다. 작업 목록의 예상 잔액은 여기서 뺀다. */
     public long balance() { return balance; }
+    public List<MyAccount> myAccounts() { return myAccounts; }
     public List<Account> accounts() { return accounts; }
     public Optional<Account> find(String name) { return accounts.stream().filter(a -> a.name().equals(name)).findFirst(); }
 }

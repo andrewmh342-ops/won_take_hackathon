@@ -1,5 +1,5 @@
 // 담당: 공용 — 프론트 시연 전용 고정 응답 (실제 AI 분석 아님)
-import { withdrawalAccount } from '../data/accounts.js';
+import { myAccounts, withdrawalAccount } from '../data/accounts.js';
 let agreed = null;
 let never = localStorage.getItem('wontake-demo-never') === 'true';
 const entries = new Map();
@@ -25,6 +25,10 @@ const samplePlan = {
   ],
 };
 export const mock = {
+  async getAccounts() {
+    const accounts = myAccounts.map(a => ({ ...a, balance: a.withdrawal ? mockBalance : a.balance }));
+    return { accounts, totalBalance: accounts.reduce((sum, a) => sum + a.balance, 0) };
+  },
   async getHistory() {
     return conversations.map((entry) => entry.role === 'USER' ? entry : {
       role: 'ASSISTANT', message: entry.reply, inputType: '', answer: structuredClone(entry),
