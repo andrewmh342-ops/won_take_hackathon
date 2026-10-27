@@ -200,7 +200,7 @@ function FinishPage({ plan, busy, onRun, onReview, onHandoff, onGoCurrent, onEnd
     <>
       <div className="take-body">
         <span className="take-icon done big" aria-hidden="true">✓</span>
-        <h2>대응을 마쳤어요</h2>
+        <h2><span className="blue">WON TAKE</span>로 대응을 마쳤어요!</h2>
         <p className="take-sub">혹시 더 필요한 게 있으신가요?</p>
         {extras.length > 0 && (
           <div className="take-extras">
@@ -221,30 +221,6 @@ function FinishPage({ plan, busy, onRun, onReview, onHandoff, onGoCurrent, onEnd
   );
 }
 
-function ReasonSheet({ plan, onClose }) {
-  const left = [...(plan.considered ?? []), ...(plan.skipped ?? [])];
-  return (
-    <div className="sheet-backdrop" role="presentation" onClick={onClose}>
-      <section className="sheet" role="dialog" aria-modal="true" aria-label="AI가 이렇게 정한 이유" onClick={(e) => e.stopPropagation()}>
-        <span className="sheet-handle" aria-hidden="true" />
-        <h2>AI가 이렇게 정한 이유</h2>
-        {plan.orderReason && <p>{plan.orderReason}</p>}
-        {left.length > 0 && (
-          <>
-            <h3>넣지 않은 일</h3>
-            <ul>{left.map((item, i) => <li key={`${item.blockId}-${i}`}><strong>{item.name}</strong> {item.reason}</li>)}</ul>
-          </>
-        )}
-        <details>
-          <summary>AI에 보낸 정보 (이름·카드번호·금액 제외)</summary>
-          <pre>{JSON.stringify(plan.aiInput, null, 2)}</pre>
-        </details>
-        <button className="primary take-main" type="button" onClick={onClose}>닫기</button>
-      </section>
-    </div>
-  );
-}
-
 export default function PlanScreen() {
   const { params, navigate, openHandoff } = useNavigation();
   const [plan, setPlan] = useState(null);
@@ -254,7 +230,6 @@ export default function PlanScreen() {
   const [toast, setToast] = useState('');
   const [error, setError] = useState('');
   const [newKeys, setNewKeys] = useState(() => new Set());
-  const [sheet, setSheet] = useState(false);
   const pager = useRef(null);
 
   const load = useCallback(async () => {
@@ -354,7 +329,7 @@ export default function PlanScreen() {
 
   return (
     <section className="take" aria-label="원테이크">
-      <TakeHeader onBack={() => navigate('chat')} title={plan.events.join(' · ') || '원테이크'} progress={`${doneCount}/${total}`} onWhy={() => setSheet(true)} />
+      <TakeHeader onBack={() => navigate('chat')} title={plan.events.join(' · ') || '원테이크'} done={doneCount} total={total} />
       <div className="take-progress" aria-hidden="true"><span style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} /></div>
       <nav className="take-tabs" aria-label="단계">
         {steps.map((step, i) => (
@@ -392,18 +367,21 @@ export default function PlanScreen() {
           </article>
         ))}
       </div>
-      {sheet && <ReasonSheet plan={plan} onClose={() => setSheet(false)} />}
     </section>
   );
 }
 
-function TakeHeader({ onBack, title = '원테이크', progress, onWhy }) {
+// 상단: 뒤로·제목·진행 개수만 둔다. 순서 이유 시트는 고객 흐름을 끊어 뺐다(2026-10-27 사용자 승인).
+function TakeHeader({ onBack, title = '원테이크', done, total }) {
   return (
     <header className="take-header">
       <button className="take-back" type="button" data-track-id="take-back" onClick={onBack} aria-label="대화로 돌아가기">‹</button>
       <strong>{title}</strong>
-      {progress && <span className="take-count">{progress}</span>}
-      {onWhy && <button className="take-why" type="button" data-track-id="take-why" onClick={onWhy} aria-label="AI가 이렇게 정한 이유">이유</button>}
+      {total > 0 && (
+        <span className={`take-count${done === total ? ' all' : ''}`} aria-label={`${total}단계 중 ${done}단계 끝냄`}>
+          <b>{done}</b>/{total} 완료
+        </span>
+      )}
     </header>
   );
 }

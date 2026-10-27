@@ -300,3 +300,10 @@
 - 실행한 테스트와 결과: 새 테스트 먼저 실패 확인 후 구현. 프런트 `node --test src/**/*.test.js` 99개 통과·0개 실패, `npm run build` 성공. 브라우저(5173): 홈 빠른 메뉴·혜택, 전체 메뉴 분류·행, 하단 탭 이모지 표시 확인.
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
 - 확인하지 못한 것: 이모지 모양은 기기(Windows·Mac·Android) 기본 폰트마다 다름. 커밋하지 않음.
+
+### 2026-10-27 · [claude] 원테이크 [이유] 버튼·하단 시트 삭제
+- 사용자 요청: 원테이크(카드 분실) 화면 상단 "이유" 버튼 삭제, 사용자 친화적으로 정리, 관련 페이지 수정. [이유]가 승인된 SPEC R5 "AI가 이렇게 정한 이유" 하단 시트의 유일한 입구라 확인 → 사용자 "시트까지 완전히 삭제" 선택(SPEC 변경 승인).
+- 바뀐 파일과 이유: frontend screens/PlanScreen.jsx (ReasonSheet·[이유] 버튼 삭제, 상단 진행 개수를 "n/m 완료"로, 모두 끝내면 강조색), styles/app.css (take-why·sheet 스타일 삭제, 진행 개수 스타일), SPEC.md (상단 승인 줄, R5 화면 규칙 293행 교체·상단 구성 1행, 가명화 문단의 "AI에 보낸 정보" 표시 문장, 4장 작업 33), docs/claude-local-test.md (시연 안내 문장), PROGRESS.md. 서버 plan 응답(orderReason·considered·skipped·aiInput)은 바꾸지 않음.
+- 실행한 테스트와 결과: 프런트 `node --test src/**/*.test.js` 99개 통과·0개 실패, `npm run build` 성공. 브라우저(프런트 모의 모드 5192, 확인 후 종료): "카드를 잃어버렸어요" → [지금 해결하기] → 상단 "‹ 카드 분실 0/3 완료", [이유] 버튼·시트 없음, 콘솔 오류 0건.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 사용자 승인 범위만 수정.
+- 확인하지 못한 것: Claude 모드 실제 플랜 화면(크레딧 사용을 피해 모의 모드로만 확인). 커밋하지 않음.

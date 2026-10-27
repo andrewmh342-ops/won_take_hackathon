@@ -2529,80 +2529,12 @@ input::placeholder {
   margin-left: auto;
   color: var(--muted);
 }
-.take-why {
-  flex: none;
-  padding: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  text-decoration: underline;
-}
 .take-loading {
   padding: 24px;
   color: var(--muted);
 }
-.sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: flex-end;
-  background: var(--overlay);
-}
-.sheet {
-  box-sizing: border-box;
-  width: 100%;
-  max-height: 80%;
-  padding: 12px 20px 22px;
-  overflow-y: auto;
-  border-radius: 24px 24px 0 0;
-  background: var(--surface);
-}
-.sheet-handle {
-  display: block;
-  width: 40px;
-  height: 4px;
-  margin: 0 auto 14px;
-  border-radius: 2px;
-  background: var(--border);
-}
-.sheet h2 {
-  font-size: 19px;
-}
-.sheet h3 {
-  margin: 16px 0 6px;
-  font-size: 15px;
-}
-.sheet p,
-.sheet li {
-  margin-top: 8px;
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.5;
-}
-.sheet ul {
-  margin: 0;
-  padding-left: 18px;
-}
-.sheet details {
-  margin: 14px 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-.sheet pre {
-  max-height: 160px;
-  overflow: auto;
-  font-size: 11px;
-  white-space: pre-wrap;
-}
 
 /* 원테이크: 작은 화면에서도 한 단계가 스크롤 없이 들어가게 */
-.take-why {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--bg);
-  text-decoration: none;
-  font-weight: 700;
-}
 .take-icon {
   width: 48px;
   height: 48px;
@@ -3072,4 +3004,16 @@ input::placeholder {
   width: 42px;
   height: 42px;
   font-size: 22px;
+}
+/* 원테이크 상단 진행 개수: "1/3 완료", 다 끝내면 강조색으로 채운다(강조색은 하나만) */
+.take-count {
+  flex: none;
+  font-weight: 700;
+}
+.take-count b {
+  font-weight: 900;
+}
+.take-count.all {
+  background: var(--primary);
+  color: var(--surface);
 }
