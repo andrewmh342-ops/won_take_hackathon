@@ -19,10 +19,11 @@ export function NavigationProvider({ children }) {
   current.current = { route, agreed };
   // 지나온 화면 기록. 홈은 출발점이라 홈으로 가면 기록을 비운다.
   const history = useRef([]);
-  const navigate = useCallback((screen, params = {}) => {
+  // replace: 지금 화면을 기록에 남기지 않고 바꾼다(스플래시처럼 잠깐 보이는 화면).
+  const navigate = useCallback((screen, params = {}, { replace = false } = {}) => {
     const from = current.current.route;
-    history.current =
-      screen === 'home' ? [] : [...history.current, { screen: from.screen, params: from.params }];
+    if (screen === 'home') history.current = [];
+    else if (!replace) history.current = [...history.current, { screen: from.screen, params: from.params }];
     setBubble(null);
     setRoute((old) => ({ screen, params, key: old.key + 1 }));
   }, []);
@@ -49,7 +50,7 @@ export function NavigationProvider({ children }) {
   }, [load]);
   useEffect(() => {
     let active = true;
-    if (ready && !['consent', 'agent', 'login'].includes(route.screen))
+    if (ready && !['consent', 'agent', 'login', 'splash'].includes(route.screen))
       trackScreen(route.screen, agreed, route.params.menuId)
         .then(async (result) => {
           if (!result.analysisId) {
@@ -62,7 +63,7 @@ export function NavigationProvider({ children }) {
           const now = current.current;
           const category = findMenu(now.route.params.menuId)?.category;
           if (latestAnalysis.current === result.analysisId && now.agreed === true && analysis.bubble
-            && !['chat', 'consent', 'agent', 'login'].includes(now.route.screen)
+            && !['chat', 'consent', 'agent', 'login', 'splash'].includes(now.route.screen)
             && (!category || category === analysis.bubble.category)) setBubble(analysis.bubble);
         })
         .catch(() => {});
@@ -82,7 +83,7 @@ export function NavigationProvider({ children }) {
   }
   function onClickCapture(event) {
     const element = event.target.closest('[data-track-id]');
-    if (!element || ['consent', 'agent', 'login'].includes(route.screen)) return;
+    if (!element || ['consent', 'agent', 'login', 'splash'].includes(route.screen)) return;
     const key = route.key;
     trackClick(route.screen, element.dataset.trackId, agreed)
       .then((result) => {

@@ -285,3 +285,11 @@
 - 실행한 테스트와 결과: 테스트 먼저 작성 후 실패 확인(백엔드 4개 실패·플랜 조회 404·화면 기록 400, 프런트 planSteps 모듈 없음) → 구현. 내가 쓴 새 테스트 2개는 입력 문장이 60자보다 짧거나 substring 범위가 틀린 테스트 오류라 테스트 입력을 고침(기대 규칙은 그대로). 백엔드 `gradlew test` 173개 통과·0개 실패. 프런트 `node --test src/audio/*.test.js src/api/*.test.js src/demo/*.test.js` 38개 통과·0개 실패, `npm run build` 성공. 브라우저(FAKE 8081·Vite 5175, 1280×900): A "일본 가려는데 트래블카드 잃어버렸어" → 대화에 요약 카드만 → 카드 타일(7310 미리 선택) 확인 → 자동으로 카드 정지 단계 → 내 카드 화면 정지 → [다음 단계로] → 재발급 → 출국일 칩 [내일] → 재판단 후 첫 미완료 단계로 → 다른 카드 2개·환율 → 마무리 "대응을 마쳤어요"(환전·보험) → [네, 더 찾아볼게요] → "더 하실 일은 없어요"; [이유] 시트, 대화 머리 고정(스크롤 후 위치 0), 요약 카드 "모두 끝냈어요 ✓". C 같은 질문 → 확인·정지·출국일 후 탭에 환전·상담이 생기고 "⚠ 해외에서 쓸 카드가 아직 없어요".
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침. SPEC.md는 사용자 승인 범위(R5 플랜 화면·작업 32)만.
 - 확인하지 못한 것: 실제 Claude 모드에서 한 문장 답·짧은 이유가 지켜지는지, "할 일이 n개 늘었어요" 알림(FAKE 재판단에서는 할 일 목록이 같아 화면에서 보지 못함, 단위 테스트로만 확인), 고객 C 마무리 "남은 문제" 카드(환전 화면 입력까지는 진행하지 않음, 단위 테스트로만 확인), 실제 휴대폰 터치로 옆으로 밀기. 커밋하지 않음.
+### 2026-10-27 · [claude] 홈 우리WON뱅킹 구조·AI 로봇 아이콘·WON TAKE 스플래시
+- 사용자 요청: 메인 화면을 우리WON뱅킹으로, 상단 'AI' 버튼을 위비 또는 로봇 아이콘으로, 버튼을 누르면 WON TAKE 스플래시를 약 1초 보여 준 뒤 WON TAKE ASSISTANT AI 대화 화면으로 진입.
+- 바뀐 파일과 이유: layout/TopBar.jsx (로고 글자 "우리WON뱅킹", AI 버튼을 로봇 아이콘으로, 누르면 splash), screens/HomeScreen.jsx (대표 계좌 카드·빠른 메뉴·WON TAKE 배너·혜택 목록, 기존 data-track-id 유지), components/RobotIcon.jsx (새, 직접 그린 SVG), screens/SplashScreen.jsx (새, 1000ms 뒤 chat으로 replace 이동), navigation/index.jsx (navigate의 replace 옵션, splash를 행동 기록·말풍선 대상에서 제외), main.jsx (splash는 상·하단 바 없이 표시), styles/app.css (홈·스플래시 스타일, 동작 줄이기 설정 존중), PROGRESS.md.
+- 아이콘 선택: 위비는 실제 은행 캐릭터 자산이라 AGENTS.md(실제 앱 이미지·로고 금지)에 따라 쓰지 않고 로봇 아이콘을 직접 그림.
+- 실행한 테스트와 결과: 프런트 `node --test src/audio/*.test.js src/api/*.test.js src/demo/*.test.js src/components/*.test.js` (이전 폴더 기준) 29개 통과·0개 실패, `npm run build` 성공. 브라우저(사용자 5173 서버): 홈 표시, AI 버튼 → 스플래시(상단 바 없음) → 약 1초 뒤 AI 대화, 대화에서 뒤로 → 홈(스플래시로 돌아가지 않음), 콘솔 오류 0건.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. 홈·스플래시 화면 설명은 SPEC에 아직 없음(승인 시 반영).
+- 확인하지 못한 것: 스플래시 화면 단위 자동 테스트 없음(JSX 테스트 도구 없음, 새 라이브러리 미추가). 커밋하지 않음.
+- 이 폴더 반영: 이전 폴더의 미커밋 변경을 origin/main(d48dc92) 위에 다시 적용. 홈 잔액은 main의 useAccounts·AccountStatus(서버 가상 잔액)를 그대로 써서 고정 잔액 상수를 두지 않음.

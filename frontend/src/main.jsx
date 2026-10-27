@@ -22,6 +22,7 @@ import FxRateScreen from './screens/FxRateScreen.jsx';
 import ExchangeApplyScreen from './screens/ExchangeApplyScreen.jsx';
 import TravelInsuranceScreen from './screens/TravelInsuranceScreen.jsx';
 import PlanScreen from './screens/PlanScreen.jsx';
+import SplashScreen from './screens/SplashScreen.jsx';
 import { registerMenuNavigation, highlightMenu } from './components/MenuList.jsx';
 import { useMock, getHealth } from './api/client.js';
 import './styles/tokens.css';
@@ -77,7 +78,11 @@ function App() {
         WON TAKE{' '}
         <span className="preview-mode">{{ FRONTEND_MOCK: '프런트 모의 모드', FAKE: '모의 AI · 서버 연결됨', CLAUDE: 'Claude 연결 모드', CONNECTING: '서버 확인 중', OFFLINE: '서버 연결 확인 필요' }[aiMode]}</span>
       </div>
-      {screen === 'agent' ? (
+      {screen === 'splash' ? (
+        <div className="phone splash-phone">
+          <SplashScreen key={key} />
+        </div>
+      ) : screen === 'agent' ? (
         <AgentScreen />
       ) : (
         <PhoneFrame>
