@@ -160,4 +160,19 @@ class PlanServiceTest {
         }
     }
 
+    /** 출금은 생활통장 하나뿐이라, 내 적금에서 꺼내는 요청을 카드로 만들면 생활통장 → 적금 반대 방향이 된다(버그1). */
+    @Test void 내_계좌에서_꺼내는_요청을_알아본다() {
+        var s = service(ai("IN_SCOPE"));
+        assertTrue(s.fromOwn("50만원 적금 통장에서 빼줘"));
+        assertTrue(s.fromOwn("적금에서 생활통장으로 50만원 옮겨줘"));
+        assertTrue(s.fromOwn("차곡차곡 적금에서 엄마한테 30만원 보내줘"));
+        assertTrue(s.fromOwn("적금계좌에서 10만원 꺼내 줘"));
+        assertFalse(s.fromOwn("30만원 적금 넣어줘"));
+        assertFalse(s.fromOwn("생활통장에서 적금으로 50만원 옮겨줘"));
+        assertFalse(s.fromOwn("적금에서 이자 얼마 받았는지 보여줘"));
+        assertFalse(s.fromOwn("엄마한테 30만원 보내줘"));
+        assertFalse(s.fromOwn("적금에서 이체 내역 보여줘"));
+        assertFalse(s.fromOwn("적금 계좌에서 자동이체 바꾸고 싶어"));
+        assertFalse(s.fromOwn("적금에서 넣은 돈 얼마야"));
+    }
 }

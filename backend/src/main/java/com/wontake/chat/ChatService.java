@@ -63,6 +63,8 @@ public class ChatService {
             // 범위 밖 질문이 이어진 세션은 AI를 부르지 않는다(크레딧 보호).
             if (guard.blocked(sessionId)) return record(s, question, inputType, outOfScope(s, BLOCKED_REPLY));
             guard.chat(sessionId);
+            // 내 적금에서 꺼내는 요청은 AI가 이체 카드(반대 방향)나 이체 메뉴 이동으로 답할 수 있어, AI와 빈 금액 채우기보다 먼저 서버 규칙으로 안내한다.
+            if (transfers != null && transfers.fromOwn(question)) return record(s, question, inputType, planReply(s, transfers.fromOwnPlan(s)));
             // 빈 금액이 채워지면 같은 질문으로 업무 플랜을 새로 만들지 않는다.
             if (transfers != null) {
                 var filled = transfers.fill(s, question);

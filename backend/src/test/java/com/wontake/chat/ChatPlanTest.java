@@ -92,4 +92,30 @@ class ChatPlanTest {
         assertEquals(ChatService.PLAN_REPLY, last.message());
         assertEquals(2, last.answer().transferPlan().tasks().size());
     }
+    /** AI가 적금을 받는 곳으로 고르면 반대 방향 카드가 된다. 그래서 AI를 부르기 전에 서버 규칙으로 안내한다(버그1). */
+    @Test void 적금에서_빼는_요청은_카드_없이_안내하고_AI를_부르지_않는다() {
+        var reply = service(ai(AiClient.Answer.TRANSFER_PLAN, List.of(new AiClient.TaskDraft("WON 차곡차곡 적금", 500_000L, ""))))
+            .chat("a", "sa", "50만원 적금 통장에서 빼줘", "TEXT");
+        assertEquals("PLAN", reply.type());
+        assertEquals(PlanService.FROM_OWN_MESSAGE, reply.reply());
+        assertEquals("FROM_OWN", reply.transferPlan().type());
+        assertTrue(reply.transferPlan().tasks().isEmpty());
+        assertFalse(reply.transferPlan().canConfirm());
+        assertTrue(reply.menuIds().isEmpty());
+        assertEquals(0, answers.get());
+        assertEquals(0, plans.get());
+    }
+    @Test void 빈_금액_카드가_있어도_적금에서_빼는_말은_금액으로_채우지_않는다() {
+        var service = service(ai(AiClient.Answer.TRANSFER_PLAN, (Long) null));
+        assertEquals("NEEDS_AMOUNT", service.chat("a", "sa", "월세 내고 엄마한테 30만원 보내줘", "TEXT").transferPlan().tasks().getFirst().status());
+        var reply = service.chat("a", "sa", "적금에서 65만원 빼줘", "TEXT");
+        assertEquals("FROM_OWN", reply.transferPlan().type());
+        assertEquals(1, answers.get());
+    }
+    @Test void 적금에_넣는_요청은_그대로_카드를_만든다() {
+        var reply = service(ai(AiClient.Answer.TRANSFER_PLAN, List.of(new AiClient.TaskDraft("WON 차곡차곡 적금", 300_000L, ""))))
+            .chat("a", "sa", "30만원 적금 넣어줘", "TEXT");
+        assertEquals("PLAN", reply.transferPlan().type());
+        assertEquals("OWN_TRANSFER", reply.transferPlan().tasks().getFirst().type());
+    }
 }
