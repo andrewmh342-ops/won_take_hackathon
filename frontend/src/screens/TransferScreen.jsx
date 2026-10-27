@@ -2,8 +2,12 @@
 import React, { useState } from 'react';
 import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
+import { useAccounts } from '../data/useAccounts.js';
+import AccountStatus from '../components/AccountStatus.jsx';
 export default function TransferScreen() {
   const [open, setOpen] = useState(false);
+  const accountState = useAccounts();
+  const withdrawalAccount = accountState.data?.accounts.find(account => account.withdrawal);
   return (
     <div className="page">
       <BackButton />
@@ -17,19 +21,20 @@ export default function TransferScreen() {
         <i />
         <span>3</span>
       </div>
-      <section className="account-picker">
+      <AccountStatus {...accountState} />
+      {withdrawalAccount && <section className="account-picker">
         <small>출금 계좌</small>
         <div>
           <span className="bank-icon">W</span>
           <span>
-            <strong>WON 생활통장</strong>
-            <small>DEMO-ACCOUNT-01 · 가상 계좌</small>
+            <strong>{withdrawalAccount.name}</strong>
+            <small>{withdrawalAccount.number} · 가상 계좌</small>
           </span>
         </div>
         <p>
-          출금 가능 <strong>{(2450000).toLocaleString('ko-KR')}원</strong>
+          출금 가능 <strong>{withdrawalAccount.balance.toLocaleString('ko-KR')}원</strong>
         </p>
-      </section>
+      </section>}
       <form
         onSubmit={(e) => {
           e.preventDefault();

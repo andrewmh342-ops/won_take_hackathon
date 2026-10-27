@@ -16,11 +16,20 @@ import java.util.*;
 
 @Service
 public class ChatService {
+    /** 업무 플랜(plan)과 이체 승인 목록(transferPlan)은 계약이 달라 서로 다른 필드로 보낸다. */
     public record Reply(String type, String normalized, String reply, String menuId, List<String> menuIds,
-                        List<String> steps, int notFoundStreak, String mode, boolean handoffSuggested, Plan plan) {}
+                        List<String> steps, int notFoundStreak, String mode, boolean handoffSuggested, Plan plan,
+                        com.wontake.plan.PlanService.Plan transferPlan) {
+        public Reply(String type, String normalized, String reply, String menuId, List<String> menuIds,
+                     List<String> steps, int notFoundStreak, String mode, boolean handoffSuggested, Plan plan) {
+            this(type, normalized, reply, menuId, menuIds, steps, notFoundStreak, mode, handoffSuggested, plan, null);
+        }
+    }
     public static final int MAX_QUESTION = 500;
     /** 범위 밖 질문에는 AI가 쓴 문장을 보여 주지 않고 이 고정 안내만 보낸다. */
     public static final String OUT_OF_SCOPE_REPLY = "WON테이크는 이 앱을 쓰다 막힌 점만 도와드려요. 이체, 계좌 조회, 인증, 증명서, 환전 같은 메뉴를 찾거나 쓰다가 어려운 점을 말씀해 주세요.";
+    /** 작업 목록을 만들었을 때 대화에 남기는 문장. 금액을 다시 물어야 하면 PlanService의 안내 문장을 대신 쓴다. */
+    public static final String PLAN_REPLY = "보내실 내용을 정리했어요. 아래 목록을 확인해 주세요. 실제 이체는 하지 않아요.";
     public static final String BLOCKED_REPLY = "앱 이용과 관련 없는 질문이 이어져 잠시 AI 안내를 멈췄어요. 10분 뒤에 다시 물어봐 주시거나, 상담사에게 연결해 주세요.";
     private final DemoStore store;
     private final MenuCatalog catalog;
@@ -28,13 +37,20 @@ public class ChatService {
     private final BehaviorService behavior;
     private final UsageGuard guard;
     private final PlanService plans;
+    private final com.wontake.plan.PlanService transfers;
     public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai) { this(store,catalog,ai,null,new UsageGuard()); }
     public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior) { this(store,catalog,ai,behavior,new UsageGuard()); }
     public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior,UsageGuard guard) {
         this(store,catalog,ai,behavior,guard,new PlanService(store,new BlockCatalog(),new ProfileStore(store),guard));
     }
-    @Autowired public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior,UsageGuard guard,PlanService plans) {
-        this.store=store; this.catalog=catalog; this.ai=ai; this.behavior=behavior; this.guard=guard; this.plans=plans;
+    public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior,UsageGuard guard,PlanService plans) {
+        this(store, catalog, ai, behavior, guard, plans, null);
+    }
+    public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior,UsageGuard guard,com.wontake.plan.PlanService transfers) {
+        this(store, catalog, ai, behavior, guard, new PlanService(store,new BlockCatalog(),new ProfileStore(store),guard), transfers);
+    }
+    @Autowired public ChatService(DemoStore store, MenuCatalog catalog, AiClient ai,BehaviorService behavior,UsageGuard guard,PlanService plans,com.wontake.plan.PlanService transfers) {
+        this.store=store; this.catalog=catalog; this.ai=ai; this.behavior=behavior; this.guard=guard; this.plans=plans; this.transfers=transfers;
     }
     public Reply chat(String userId, String sessionId, String question, String inputType) {
         return chat(userId,sessionId,question,inputType,null);
@@ -47,6 +63,11 @@ public class ChatService {
             // 범위 밖 질문이 이어진 세션은 AI를 부르지 않는다(크레딧 보호).
             if (guard.blocked(sessionId)) return record(s, question, inputType, outOfScope(s, BLOCKED_REPLY));
             guard.chat(sessionId);
+            // 빈 금액이 채워지면 같은 질문으로 업무 플랜을 새로 만들지 않는다.
+            if (transfers != null) {
+                var filled = transfers.fill(s, question);
+                if (filled.isPresent()) return record(s, question, inputType, planReply(s, filled.get()));
+            }
             // 작업 25: AI로 보내는 질문·이전 대화·행동 기록·말풍선 맥락은 가명화한 사본이다(대화 기록은 원문).
             var red = plans.redactor();
             var turns = red.turns(userId, sessionId, history(s.messages()));
@@ -67,6 +88,16 @@ public class ChatService {
                 guard.outOfScope(sessionId);
                 return record(s, question, inputType, outOfScope(s, OUT_OF_SCOPE_REPLY));
             }
+            if (result != null && result.transferPlan()) {
+                // 같은 질문을 plan에 넘긴다. 세션 사용량(UsageGuard)은 위에서 질문 하나로 이미 셌다.
+                // 서버 전체 호출 상한(app.ai.max-calls)은 실제 호출 수라 이체 묶음 하나에 2번 쓴다.
+                if (transfers == null) throw new IllegalStateException("이체 PlanService 없이 만든 ChatService");
+                var plan = transfers.plan(s, question.trim());
+                // 받는 사람을 못 찾았으면(예: "5만원 이체해 줘") 채팅 AI가 함께 쓴 메뉴 안내를 보여 준다. Haiku가 분류를 틀려도 SPEC대로 메뉴 안내가 나오고, AI를 다시 부르지 않는다.
+                // 단, Haiku가 이체 묶음일 때 답 문장을 비워 보낸 적이 있어(2026-10-27 실측), 안내가 형식에 맞지 않으면 plan의 다시 묻는 문장을 쓴다.
+                boolean fallback = !plan.type().equals("PLAN") && valid(result);
+                if (!fallback) return record(s, question, inputType, planReply(s, plan));
+            }
             validate(result);
             guard.inScope(sessionId);
             var ids = List.copyOf(result.menuIds());
@@ -82,11 +113,17 @@ public class ChatService {
             }
             // 상담 버튼은 항상 쓸 수 있다. 범위 안 질문에서 찾지 못함 연속 2번이거나 AI가 권하면 버튼을 강조하도록 알린다(SPEC R3).
             s.notFoundStreak = ids.isEmpty() ? s.notFoundStreak + 1 : 0;
-            var reply = new Reply(ids.isEmpty() ? "NOT_FOUND" : "ANSWER", "VOICE".equals(inputType) ? result.normalized() : "",
-                result.reply(), ids.isEmpty() ? "" : ids.getFirst(), ids, List.copyOf(result.steps()), s.notFoundStreak, ai.mode(),
+            // 유사 표현의 의미 판단은 AI가 맡는다. 확인 질문의 메뉴 이름은 카탈로그에서 가져와 후보 버튼과 일치시킨다.
+            boolean confirm = result.needsConfirmation();
+            String text = confirm ? "혹시 보고 싶은 게 " + String.join(" 또는 ", ids.stream().map(id -> catalog.find(id).name()).toList()) + "인가요?" : result.reply();
+            var reply = new Reply(ids.isEmpty() ? "NOT_FOUND" : confirm ? "CONFIRM_MENU" : "ANSWER", "VOICE".equals(inputType) ? result.normalized() : "",
+                text, ids.isEmpty() ? "" : ids.getFirst(), ids, confirm ? List.of() : List.copyOf(result.steps()), s.notFoundStreak, ai.mode(),
                 result.handoff() || s.notFoundStreak >= 2, null);
             return record(s, question, inputType, reply);
         }
+    }
+    private Reply planReply(DemoStore.Session s, com.wontake.plan.PlanService.Plan plan) {
+        return new Reply("PLAN", "", plan.message().isEmpty() ? PLAN_REPLY : plan.message(), "", List.of(), List.of(), s.notFoundStreak, ai.mode(), false, null, plan);
     }
     static final int PLAN_REPLY_MAX = 60;
     /** 작업 32: 플랜이 있으면 말풍선은 한 문장(60자 이내). 넘으면 첫 문장만, 첫 문장도 넘으면 59자 + "…". */
@@ -177,11 +214,14 @@ public class ChatService {
         return turns;
     }
     private void validate(AiClient.Answer a) {
-        if (a == null || a.reply() == null || a.reply().isBlank() || a.reply().length()>500
+        if (!valid(a)) throw new ApiException(502, "AI_INVALID_RESPONSE", "AI 안내 형식을 확인하지 못했어요. 다시 시도해 주세요.");
+    }
+    private boolean valid(AiClient.Answer a) {
+        return !(a == null || a.reply() == null || a.reply().isBlank() || a.reply().length()>500
             || a.normalized()==null || a.normalized().length()>2000 || a.menuIds()==null || a.menuIds().size()>2
             || a.menuIds().stream().anyMatch(id -> id==null || !catalog.contains(id))
             || a.menuIds().stream().distinct().count()!=a.menuIds().size()
-            || a.steps()==null || a.steps().size()>3 || a.steps().stream().anyMatch(s -> s==null || s.isBlank() || s.length()>200))
-            throw new ApiException(502, "AI_INVALID_RESPONSE", "AI 안내 형식을 확인하지 못했어요. 다시 시도해 주세요.");
+            || a.needsConfirmation() && a.menuIds().isEmpty()
+            || a.steps()==null || a.steps().size()>3 || a.steps().stream().anyMatch(s -> s==null || s.isBlank() || s.length()>200));
     }
 }

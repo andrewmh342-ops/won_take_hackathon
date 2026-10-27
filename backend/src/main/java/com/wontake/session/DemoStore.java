@@ -2,6 +2,7 @@ package com.wontake.session;
 
 import com.wontake.api.ApiException;
 import com.wontake.chat.ChatService;
+import com.wontake.plan.PlanService;
 import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.*;
@@ -13,12 +14,16 @@ public class DemoStore {
     public record Event(String type, String screenId, String elementId, String query, String timestamp) {}
     public record Message(String role, String message, String inputType, ChatService.Reply answer) {}
     public static class Session {
-        public final String userId;
+        public final String userId, id;
         public final List<Event> eventLog = new ArrayList<>();
         public final List<Message> conversation = new ArrayList<>();
         public volatile long touched = System.currentTimeMillis();
         public int notFoundStreak;
-        public Session(String userId) { this.userId = userId; }
+        /** 승인 전 작업 목록(planId → 목록, 오래된 것이 앞). 승인하거나 금액을 채워 새 목록으로 바뀌면 뺀다. 넣고 빼기는 PlanService만 한다. */
+        public final Map<String, PlanService.Plan> plans = new LinkedHashMap<>();
+        /** 승인한 planId. 같은 목록을 두 번 실행하지 않게 남긴다. */
+        public final Set<String> confirmedPlans = new HashSet<>();
+        public Session(String userId, String id) { this.userId = userId; this.id = id; }
         public synchronized List<Event> events() { return List.copyOf(eventLog); }
         public synchronized List<Message> messages() { return List.copyOf(conversation); }
     }
@@ -42,7 +47,7 @@ public class DemoStore {
         sessions.entrySet().removeIf(e -> now - e.getValue().touched > 8 * 3600_000L);
         if (!sessions.containsKey(sessionId) && sessions.size() >= 1000)
             throw new ApiException(503, "DEMO_CAPACITY", "시연 세션이 많습니다. 서버를 재시작해 주세요.");
-        var s = sessions.computeIfAbsent(sessionId, key -> new Session(userId));
+        var s = sessions.computeIfAbsent(sessionId, key -> new Session(userId, key));
         if (!s.userId.equals(userId)) throw new ApiException(403, "SESSION_OWNER_MISMATCH", "세션을 확인해 주세요.");
         s.touched = now;
         return s;

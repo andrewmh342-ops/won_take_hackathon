@@ -19,7 +19,7 @@ public class Redactor {
     /** 공백·하이픈을 포함해 숫자 10자리 이상(카드·계좌·전화번호). 날짜(8자리)·시각 같은 짧은 숫자는 그대로 둔다. */
     static final Pattern LONG_NUMBER = Pattern.compile("(?<!\\d)\\d(?:[ -]?\\d){9,}(?!\\d)");
     /** 숫자 + (만·천·억) + 원. "5만 원", "55,000원", "55000 원". */
-    static final Pattern AMOUNT = Pattern.compile("(?<![\\d,])\\d[\\d,]*(?:\\.\\d+)?\\s*(?:[만천억]\\s*)?원");
+    public static final Pattern AMOUNT = Pattern.compile("(?<![\\d,])[-+]?\\d[\\d,]*(?:\\.\\d+)?(?:\\s*[만천억]\\s*(?:\\d[\\d,]*(?:\\.\\d+)?)?)*\\s*원");
     static final Pattern REPEATED_REF = Pattern.compile("\\b(card-\\d+)(?:\\s+\\1)+(?!\\d)");
     private final ProfileStore profiles;
 

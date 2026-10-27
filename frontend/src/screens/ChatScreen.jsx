@@ -6,7 +6,9 @@ import Popup from '../components/Popup.jsx';
 import PlanCard from '../components/PlanCard.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
-import { findMenu } from '../data/menu.js';
+import { openReplyMenu, claimInitialQuestion, menuReplyContent } from '../chat/menuNavigation.js';
+import MenuReply from '../chat/MenuReply.jsx';
+import PlanReply from '../plan/PlanReply.jsx';
 
 const responseText = {
   NOT_FOUND: '말씀하신 내용을 찾지 못했어요. 다른 표현으로 다시 물어봐 주세요.',
@@ -39,6 +41,7 @@ export default function ChatScreen() {
   const initialQuestionSent = useRef(false);
   const mounted = useRef(true);
   const voicePending = useRef(false);
+  const requestPending = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -56,8 +59,9 @@ export default function ChatScreen() {
   const send = useCallback(
     async (message, inputType = 'TEXT', intentId, heardText) => {
       const text = message.trim();
-      if (!text || busy || !historyReady) return;
+      if (!text || busy || !historyReady || requestPending.current) return;
 
+      requestPending.current = true;
       setBusy(true);
       setError('');
       setDraft('');
@@ -65,6 +69,8 @@ export default function ChatScreen() {
 
       try {
         const result = await postChat({ message: text, inputType, intentId, contextId: params.contextId });
+        // 화면을 떠난 뒤 도착한 응답이 현재 화면을 다시 바꾸지 않게 한다.
+        if (!mounted.current) return;
         setMessages((current) => [
           ...current,
           {
@@ -79,21 +85,24 @@ export default function ChatScreen() {
             notFoundStreak: result.notFoundStreak,
             handoffSuggested: result.handoffSuggested,
             plan: result.plan ?? null,
+            transferPlan: result.transferPlan ?? null,
           },
         ]);
+        if (openReplyMenu(result, navigate)) setHandoffHint(false);
       } catch (requestError) {
         setMessages((current) => current.at(-1)?.role === 'USER' ? current.slice(0, -1) : current);
         setDraft(text);
         setError(`질문을 처리하지 못했어요. 다시 시도해 주세요. (${requestError.message})`);
       } finally {
+        requestPending.current = false;
         setBusy(false);
       }
     },
-    [busy, historyReady, params.contextId],
+    [busy, historyReady, params.contextId, navigate, setHandoffHint],
   );
 
   useEffect(() => {
-    if (historyReady && params.question && (params.intentId || params.autoSend) && !initialQuestionSent.current) {
+    if (historyReady && !initialQuestionSent.current && claimInitialQuestion(params)) {
       initialQuestionSent.current = true;
       void send(params.question, params.intentId ? 'SUGGESTION' : 'TEXT', params.intentId);
     }
@@ -112,6 +121,7 @@ export default function ChatScreen() {
   }, []);
 
   const lastAnswer = messages.findLast((message) => message.role === 'ASSISTANT');
+  const lastPlanMessage = messages.findLast((message) => message.role === 'ASSISTANT' && message.transferPlan);
   const handoffHighlighted = Boolean(
     lastAnswer &&
       lastAnswer.type !== 'OUT_OF_SCOPE' &&
@@ -252,9 +262,7 @@ export default function ChatScreen() {
 
       <ol className="chat-thread" aria-live="polite" aria-label="대화 내용">
         {messages.map((message, index) => {
-          const menuItems = [...new Set(message.menuIds ?? (message.menuId ? [message.menuId] : []))]
-            .slice(0, 2).map(findMenu).filter(Boolean);
-
+          const content = menuReplyContent(message);
           return (
             <li
               className={`chat-message chat-message-${message.role.toLowerCase()}`}
@@ -268,7 +276,13 @@ export default function ChatScreen() {
                     : 'WON테이크'}
               </strong>
               {message.heardText && <small>들은 말</small>}
-              <p>{message.text}</p>
+              <PlanReply
+                text={content.text}
+                plan={message.role === 'ASSISTANT' ? message.transferPlan : undefined}
+                onFill={send}
+                active={message === lastPlanMessage}
+                disabled={inputDisabled}
+              />
               {message.mode === 'FAKE' && <small>연결 테스트용 모의 응답 · 실제 AI 판단 아님</small>}
               {message.role === 'ASSISTANT' && message.normalized && (
                 <p className="normalized-text">
@@ -276,24 +290,14 @@ export default function ChatScreen() {
                   {message.normalized}
                 </p>
               )}
-              {message.role === 'ASSISTANT' && !message.plan && message.steps.length > 0 && (
+              {message.role === 'ASSISTANT' && !message.plan && !message.transferPlan && content.steps.length > 0 && (
                 <ol className="answer-steps">
-                  {message.steps.map((step, stepIndex) => (
+                  {content.steps.map((step, stepIndex) => (
                     <li key={`step-${stepIndex}`}>{step}</li>
                   ))}
                 </ol>
               )}
-              {!message.plan && menuItems.map((menuItem) => (
-                <button
-                  key={menuItem.id}
-                  className="menu-go"
-                  type="button"
-                  data-track-id={`chat-menu-${menuItem.id}`}
-                  onClick={() => navigate(menuItem.screenId, { menuId: menuItem.id })}
-                >
-                  {menuItem.name} 바로 가기 <span aria-hidden="true">›</span>
-                </button>
-              ))}
+              {!message.plan && !message.transferPlan && <MenuReply reply={message} navigate={navigate} />}
               {message.plan && <PlanCard plan={message.plan} onOpen={openPlan} />}
             </li>
           );

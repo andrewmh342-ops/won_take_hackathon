@@ -1,6 +1,8 @@
 package com.wontake.ai;
 
+import com.wontake.api.ApiException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** 테스트·키 없는 연결 확인용 규칙. 실제 AI 추론으로 시연하지 않는다. */
 public class FakeAiClient implements AiClient {
@@ -105,12 +107,39 @@ public class FakeAiClient implements AiClient {
         var left=c.planProgress().stream().filter(l->!l.startsWith("[완료] ")).toList();
         return new HandoffSummary(purpose,"",tried.isEmpty()?"":"(모의) "+String.join(", ",tried),left.isEmpty()?"":"(모의) "+String.join(", ",left));
     }
+    private static final Pattern WHO = Pattern.compile("(\\S+?)(?:한테|에게)"), SEND = Pattern.compile("\\[번호\\]\\s*[만천억]?원|\\[금액\\]|보내|이체|송금|넣어");
+    /** 연결 테스트용: 쉼표로 나눈 조각마다 받는 곳 별칭(없으면 "~한테")과 "N만원"/"N원"을 찾는다. */
+    @Override public PlanDraft plan(PlanContext c) {
+        var tasks = new ArrayList<TaskDraft>();
+        for (var part : c.request().split("[,，]")) {
+            String target = null;
+            for (var p : c.payees()) for (var alias : p.aliases()) if (target == null && part.contains(alias)) target = p.name();
+            if (target == null) { var who = WHO.matcher(part); if (who.find()) target = who.group(1); }
+            if (target != null) tasks.add(new TaskDraft(target, TransferAmounts.find(part, c.amountValues()), ""));
+        }
+        if (tasks.isEmpty() && FINANCE_WORDS.stream().noneMatch(c.request()::contains)) return new PlanDraft(Answer.OUT_OF_SCOPE, List.of());
+        return new PlanDraft(Answer.IN_SCOPE, tasks);
+    }
+    /** 연결 테스트용: 빈 곳이 하나면 말한 금액을 그곳에 쓰고, 여럿이면 이름을 말한 조각의 금액만 쓴다. */
+    @Override public List<AmountDraft> fill(FillContext c) {
+        var amounts = new ArrayList<AmountDraft>();
+        for (var target : c.targets()) {
+            Long amount = null;
+            for (var part : c.message().split("[,，]"))
+                if (amount == null && (c.targets().size() == 1 || part.contains(target))) amount = TransferAmounts.find(part, c.amountValues());
+            amounts.add(new AmountDraft(target, amount));
+        }
+        return amounts;
+    }
     @Override public Answer answer(Context c) {
-        String q = c.question();
+        String q = c.question().replace("이채", "이체");
         var plan = plan(c);
         if (!plan.blocks().isEmpty())
             return new Answer("연결 테스트용 모의 플랜입니다. 해야 할 일을 순서대로 정리했어요.", "VOICE".equals(c.inputType()) ? q : "",
                 List.of(), List.of(), false, Answer.IN_SCOPE, plan);
+        // 연결 테스트용 판정: "누구한테/에게"와 돈을 보내는 말이 함께 있으면 이체 요청으로 본다("상담사에게 연결해 줘"는 아니다).
+        // 실제 판정은 CLAUDE 모드에서 지침으로 한다. 프론트 mock.js의 같은 판정과 함께 고친다.
+        if (WHO.matcher(q).find() && SEND.matcher(q).find()) return new Answer("연결 테스트용 모의 응답입니다. 계좌이체 메뉴를 확인해 보세요.", "", List.of("instant-transfer"), List.of(), false, Answer.TRANSFER_PLAN);
         List<String> ids = new ArrayList<>();
         if(q.contains("방금 제안") && c.helpContext()!=null) ids=c.helpContext().visits().stream().map(Visit::menuId).distinct().limit(2).toList();
         else if (q.contains("내역")) {
@@ -131,6 +160,7 @@ public class FakeAiClient implements AiClient {
             }
             if (q.contains("환전")) domain="exchange";
             else if (q.contains("이체")) domain="transfer";
+            else if (q.contains("거래") || q.contains("입출금")) domain="account";
             ids = switch(domain) {
                 case "exchange" -> List.of("exchange-history");
                 case "transfer" -> List.of("transfer-history");
@@ -155,6 +185,6 @@ public class FakeAiClient implements AiClient {
         String names = String.join(", ", c.menus().stream().filter(m -> selected.contains(m.id())).map(m -> m.name()).toList());
         return new Answer(ids.isEmpty() ? "연결 테스트용 모의 응답입니다. 관련 메뉴를 찾지 못했어요." :
             "연결 테스트용 모의 응답입니다. " + names + " 메뉴를 확인해 보세요.",
-            "VOICE".equals(c.inputType()) ? q : "", ids, List.of(), q.contains("상담"));
+            "VOICE".equals(c.inputType()) ? c.question() : "", ids, List.of(), q.contains("상담"), Answer.IN_SCOPE, ids.size() > 1);
     }
 }

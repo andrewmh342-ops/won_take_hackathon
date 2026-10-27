@@ -2627,3 +2627,118 @@ input::placeholder {
 .card-tile {
   padding: 10px 12px;
 }
+
+/* 한 번에 맡기기: AI 대화 안의 작업 카드(PlanCard) */
+.transfer-plan-card {
+  margin-top: 12px;
+}
+.transfer-plan-foot {
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.transfer-plan-note.warn,
+.transfer-plan-summary .warn {
+  color: var(--warning);
+}
+.transfer-plan-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0;
+}
+.transfer-plan-summary > div {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 16px;
+}
+.transfer-plan-summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.transfer-plan-summary strong {
+  font-size: 18px;
+}
+.transfer-plan-tasks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.transfer-plan-tasks li {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+}
+.transfer-plan-tasks li.pending {
+  border-style: dashed;
+}
+.transfer-plan-task-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.transfer-plan-badge {
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--bg);
+  color: var(--muted);
+}
+.transfer-plan-badge.warn {
+  background: var(--warning);
+  color: var(--surface);
+}
+.transfer-plan-amount {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 8px 0 4px;
+}
+.transfer-plan-tasks small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.transfer-plan-note {
+  font-size: 13px;
+  margin-top: 10px;
+  color: var(--muted);
+}
+.transfer-plan-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+.transfer-plan-confirm .field {
+  margin: 0;
+}
+.transfer-plan-confirm .transfer-plan-note {
+  margin: 0;
+}
+.transfer-plan-confirm .primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.transfer-plan-done {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.transfer-plan-blockers {
+  margin: 16px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--warning);
+}

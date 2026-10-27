@@ -17,7 +17,7 @@ public class ClaudeAiClient implements AiClient {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JsonMapper json = new JsonMapper();
     private final URI endpoint;
-    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem;
+    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem, planSystem, fillSystem;
     private final Duration timeout;
     private final int maxCalls;
     private final boolean fallbacks;
@@ -32,6 +32,8 @@ public class ClaudeAiClient implements AiClient {
         system=readPrompt("chat-system.txt");
         behaviorSystem=readPrompt("behavior-system.txt");
         handoffSystem=readPrompt("handoff-system.txt");
+        planSystem=readPrompt("plan-system.txt");
+        fillSystem=readPrompt("fill-system.txt");
     }
     private String readPrompt(String name) {
         try (var stream = getClass().getResourceAsStream("/ai/"+name)) {
@@ -47,23 +49,25 @@ public class ClaudeAiClient implements AiClient {
                 "menuIds", Map.of("type", "array", "items", Map.of("type", "string", "enum", context.menus().stream().map(m -> m.id()).toList())),
                 "steps", Map.of("type", "array", "items", Map.of("type", "string")),
                 "handoff", Map.of("type", "boolean"),
-                "scope", Map.of("type", "string", "enum", List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE)),
+                "scope", Map.of("type", "string", "enum", Answer.CHAT_SCOPES),
+                "needsConfirmation", Map.of("type", "boolean"),
                 "plan", planSchema(context));
-            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff", "plan"), "additionalProperties", false);
+            var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff", "plan", "needsConfirmation"), "additionalProperties", false);
             var value=call(context,schema,system,"medium"); // 목표·장애물을 엮는 판단(R5 목표 중심)
             // schema가 scope·handoff를 요구하지만, 빠진 응답은 범위 안·강조 없음으로 본다.
-            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope"), hasPlan=value.has("plan");
-            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0)+(hasPlan?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
+            boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope"), hasPlan=value.has("plan"), hasConfirmation=value.has("needsConfirmation");
+            if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0)+(hasPlan?1:0)+(hasConfirmation?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
                 || !value.path("menuIds").isArray() || !value.path("steps").isArray() || hasHandoff && !value.path("handoff").isBoolean()
-                || hasScope && !Set.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE).contains(value.path("scope").asText())) throw invalid();
+                || hasConfirmation && !value.path("needsConfirmation").isBoolean()
+                || hasScope && !Answer.CHAT_SCOPES.contains(value.path("scope").asText())) throw invalid();
             var menuIds=new ArrayList<String>(); var steps=new ArrayList<String>();
             for (var node : value.path("menuIds")) { if (!node.isTextual()) throw invalid(); menuIds.add(node.asText()); }
             for (var node : value.path("steps")) { if (!node.isTextual()) throw invalid(); steps.add(node.asText()); }
             return new Answer(value.path("reply").asText(), value.path("normalized").asText(), menuIds, steps, value.path("handoff").asBoolean(false),
-                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE, hasPlan ? parsePlan(value.path("plan")) : AiPlan.EMPTY);
+                hasScope ? value.path("scope").asText() : Answer.IN_SCOPE, hasPlan ? parsePlan(value.path("plan")) : AiPlan.EMPTY,
+                hasConfirmation ? value.path("needsConfirmation").asBoolean() : !menuIds.isEmpty());
     }
     private static final List<String> DEFAULT_BLOCK_IDS = new BlockCatalog().ids();
-    /** R5 플랜 schema. blockId는 블록 사전 enum이라 사전 밖 블록을 지어낼 수 없다. */
     /** R5 플랜 schema. blockId는 블록 사전 enum이라 사전 밖 블록을 지어낼 수 없다. 목표·장애물·제외 이유·필수/선택을 함께 받는다. */
     private static Map<String,Object> planSchema(Context context) {
         var ids = context.blocks() != null ? context.blocks().stream().map(BlockInfo::id).toList() : DEFAULT_BLOCK_IDS;
@@ -135,6 +139,47 @@ public class ClaudeAiClient implements AiClient {
         if(!value.isObject() || value.size()!=4) throw invalid();
         for(var field:fields) if(!value.path(field).isTextual()) throw invalid();
         return json.treeToValue(value,HandoffSummary.class);
+    }
+    @Override public PlanDraft plan(PlanContext context) {
+        var task=Map.of("type","object","properties",Map.of("target",Map.of("type","string"),
+            "amountRef",amountSchema(context.amountValues()),"memo",Map.of("type","string")),
+            "required",List.of("target","amountRef","memo"),"additionalProperties",false);
+        var schema=Map.of("type","object","properties",Map.of("scope",Map.of("type","string","enum",PlanDraft.PLAN_SCOPES),
+            "tasks",Map.of("type","array","items",task)),"required",List.of("scope","tasks"),"additionalProperties",false);
+        var value=call(Map.of("request",context.request(),"payees",context.payees()),schema,planSystem,"low");
+        if(!value.isObject() || value.size()!=2 || !PlanDraft.PLAN_SCOPES.contains(value.path("scope").asText())
+            || !value.path("tasks").isArray()) throw invalid();
+        var tasks=new ArrayList<TaskDraft>();
+        for(var node:value.path("tasks")) {
+            // AI가 숫자를 새로 만들지 못하게 입력에 있는 참조만 복원한다.
+            var amount=node.path("amountRef");
+            if(!node.isObject() || node.size()!=3 || !node.path("target").isTextual() || !node.path("memo").isTextual()
+                || !(amount.isNull() || amount.isTextual())) throw invalid();
+            tasks.add(new TaskDraft(node.path("target").asText(),TransferAmounts.resolve(amount.isNull()?null:amount.asText(), context.amountValues()),node.path("memo").asText()));
+        }
+        return new PlanDraft(value.path("scope").asText(),tasks);
+    }
+    /** target은 물어본 받는 곳 중에서만 고르게 스키마로 막는다. 같은 곳이 두 번 오는 것은 PlanService가 막는다. */
+    @Override public List<AmountDraft> fill(FillContext context) {
+        var item=Map.of("type","object","properties",Map.of("target",Map.of("type","string","enum",context.targets()),
+            "amountRef",amountSchema(context.amountValues())),"required",List.of("target","amountRef"),"additionalProperties",false);
+        var schema=Map.of("type","object","properties",Map.of("amounts",Map.of("type","array","items",item)),
+            "required",List.of("amounts"),"additionalProperties",false);
+        var value=call(Map.of("targets",context.targets(),"message",context.message()),schema,fillSystem,"low");
+        if(!value.isObject() || value.size()!=1 || !value.path("amounts").isArray()) throw invalid();
+        var amounts=new ArrayList<AmountDraft>();
+        for(var node:value.path("amounts")) {
+            var amount=node.path("amountRef");
+            if(!node.isObject() || node.size()!=2 || !node.path("target").isTextual()
+                || !(amount.isNull() || amount.isTextual())) throw invalid();
+            amounts.add(new AmountDraft(node.path("target").asText(),TransferAmounts.resolve(amount.isNull()?null:amount.asText(), context.amountValues())));
+        }
+        return amounts;
+    }
+    private static Map<String, Object> amountSchema(Map<String, Long> values) {
+        var refs = new ArrayList<Object>(values.keySet());
+        refs.add(null);
+        return Map.of("type", List.of("string", "null"), "enum", refs);
     }
     private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt,String effort) {
         // 서버 전체 호출 상한: 넘으면 요청을 보내지 않는다.

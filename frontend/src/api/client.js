@@ -17,7 +17,8 @@ async function request(path, method = 'GET', body, raw = false) {
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || `요청을 처리하지 못했어요 (${response.status})`);
+    // code는 화면이 서버 코드를 자기 문구로 바꿀 때 쓴다(예: 작업 카드 승인, plan/planView.js).
+    throw Object.assign(new Error(error.message || `요청을 처리하지 못했어요 (${response.status})`), { code: error.code });
   }
   return response.status === 204 ? undefined : response.json();
 }
@@ -38,8 +39,11 @@ export const postChat = async (input) => {
   await eventQueue.flush();
   return useMock ? mock.postChat(input) : request('/chat', 'POST', { ...identity(), ...input });
 };
+export const confirmPlan = (planId, password) =>
+  useMock ? mock.confirmPlan(planId) : request('/plan/confirm', 'POST', { ...identity(), planId, password });
 export const getHistory = () => useMock ? mock.getHistory() : request(`/chat/history?${new URLSearchParams(identity())}`);
 export const getHealth = () => useMock ? Promise.resolve({ aiMode: 'FRONTEND_MOCK' }) : request('/health');
+export const getAccounts = () => useMock ? mock.getAccounts() : request(`/accounts?userId=${encodeURIComponent(getUserId())}`);
 export const analyzeHelp = (contextId) => useMock ? Promise.resolve({ bubble: null }) : request('/assist/analyze', 'POST', { ...identity(), contextId });
 export const postVoice = (blob) =>
   useMock

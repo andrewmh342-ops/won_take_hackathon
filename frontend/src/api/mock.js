@@ -1,4 +1,5 @@
 // 담당: 공용 — 프론트 시연 전용 고정 응답 (실제 AI 분석 아님)
+import { myAccounts, withdrawalAccount } from '../data/accounts.js';
 import { buildMockPlan, executeMockPlan, confirmMockPlan, answerMockPlan } from './mockPlan.js';
 let agreed = null;
 const plans = new Map();
@@ -8,12 +9,28 @@ const tickets = [];
 const conversations = [];
 const events = [];
 let notFoundStreak = 0;
+let planCount = 0;
+let mockBalance = withdrawalAccount.balance;
+const confirmedPlans = new Set();
 const suggestions = [
   { intentId: 'transfer-limit', question: '내 이체한도가 궁금하신가요?' },
   { intentId: 'overseas-remittance', question: '해외송금을 찾고 계신가요?' },
   { intentId: 'domestic-transfer', question: '국내송금을 찾고 계신가요?' },
 ];
+// 이체 요청이면 문장을 읽지 않고 늘 같은 예시 목록을 준다(서버 연결 모드에서만 실제 AI가 나눈다).
+const samplePlan = {
+  type: 'PLAN', message: '', balance: withdrawalAccount.balance, totalAmount: 950000, expectedBalance: withdrawalAccount.balance - 950000,
+  canConfirm: true, blockers: [], mode: 'FRONTEND_MOCK',
+  tasks: [
+    { order: 1, type: 'TRANSFER', target: '집주인', account: '가상은행 *0102', amount: 650000, memo: '월세', risk: 'MEDIUM', riskReasons: ['FREQUENT_RECIPIENT'], status: 'READY' },
+    { order: 2, type: 'TRANSFER', target: '엄마', account: '가상은행 *0103', amount: 300000, memo: '', risk: 'MEDIUM', riskReasons: ['FREQUENT_RECIPIENT'], status: 'READY' },
+  ],
+};
 export const mock = {
+  async getAccounts() {
+    const accounts = myAccounts.map(a => ({ ...a, balance: a.withdrawal ? mockBalance : a.balance }));
+    return { accounts, totalBalance: accounts.reduce((sum, a) => sum + a.balance, 0) };
+  },
   async getHistory() {
     return conversations.map((entry) => entry.role === 'USER' ? entry : {
       role: 'ASSISTANT', message: entry.reply, inputType: '', answer: structuredClone(entry),
@@ -112,6 +129,19 @@ export const mock = {
             notFoundStreak: ++notFoundStreak,
           };
       if (result.type === 'ANSWER') notFoundStreak = 0;
+    } else if (/한테|에게/.test(text) && /\d\s*(만\s*)?원|보내|이체|송금|넣어/.test(text)) {
+      // 백엔드 FakeAiClient와 같은 판정: 받는 사람과 돈을 보내는 말이 함께 있어야 이체로 본다.
+      result = {
+        type: 'PLAN',
+        normalized: '',
+        reply: '보내실 내용을 정리했어요. 아래 목록을 확인해 주세요. 실제 이체는 하지 않아요.',
+        menuId: '',
+        menuIds: [],
+        steps: [],
+        notFoundStreak,
+        handoffSuggested: false,
+        transferPlan: { ...structuredClone(samplePlan), planId: `mock-plan-${++planCount}` },
+      };
     } else if (!/앱|은행|계좌|통장|이체|송금|출금|입금|한도|잔액|내역|인증|비밀번호|로그인|증명|서류|환전|환율|외화|카드|대출|상담|돈|오류|안 ?돼/.test(text)) {
       // 백엔드와 같은 규칙: 금융앱 이용 불편과 무관한 질문은 고정 안내로 거절한다.
       result = {
@@ -216,6 +246,14 @@ export const mock = {
       conversations: structuredClone(conversations),
     });
     return receipt;
+  },
+  // 비밀번호는 서버(app.plan.password)만 안다. 화면 확인용이라 아무 값이나 받고, 한 번만 승인하는 것만 흉내 낸다.
+  async confirmPlan(planId) {
+    if (confirmedPlans.has(planId)) throw new Error('이미 승인한 목록이에요.');
+    confirmedPlans.add(planId);
+    const balanceBefore = mockBalance;
+    mockBalance -= samplePlan.totalAmount;
+    return { planId, status: 'CONFIRMED', totalAmount: samplePlan.totalAmount, balanceBefore, balanceAfter: mockBalance };
   },
   async getTickets() {
     return structuredClone(tickets);
