@@ -176,10 +176,11 @@ public class ClaudeAiClient implements AiClient {
         }
         return amounts;
     }
+    /** 입력에 있던 금액 참조나 null만 고르게 한다. Claude는 type 배열 ["string","null"]에 문자열 enum을 붙이면 400을 주고(2026-10-27 실측) 빈 enum도 받지 않으므로 anyOf로 나눈다. */
     private static Map<String, Object> amountSchema(Map<String, Long> values) {
-        var refs = new ArrayList<Object>(values.keySet());
-        refs.add(null);
-        return Map.of("type", List.of("string", "null"), "enum", refs);
+        Map<String, Object> nullOnly = Map.of("type", "null");
+        if (values.isEmpty()) return nullOnly;
+        return Map.of("anyOf", List.of(Map.of("type", "string", "enum", List.copyOf(values.keySet())), nullOnly));
     }
     private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt,String effort) {
         // 서버 전체 호출 상한: 넘으면 요청을 보내지 않는다.
