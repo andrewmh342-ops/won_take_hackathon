@@ -50,6 +50,12 @@ class MenuIntentContractTest {
         answer.put("needsConfirmation", true);
         assertTrue(call().needsConfirmation());
     }
+    @Test void 사건_낱말만_짧게_말해도_플랜으로_판단하라고_지침에_적는다() {
+        call();
+        var prompt = json.readTree(request.get()).path("system").asText();
+        assertTrue(prompt.contains("\"카드 분실\""), "짧은 사건 낱말 예시");
+        assertTrue(prompt.contains("메뉴·화면의 위치나 사용법을 물을 때만"), "메뉴 하나로 답하는 조건");
+    }
     @Test void 확인_여부가_누락된_구형_응답은_자동_이동을_허용하지_않는다() {
         answer.remove("needsConfirmation");
         assertTrue(call().needsConfirmation());

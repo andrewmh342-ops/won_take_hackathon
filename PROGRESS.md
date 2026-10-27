@@ -315,3 +315,62 @@
 - 실행한 테스트와 결과: 새 테스트 먼저 실패 확인 후 구현. 프런트 `node --test src/**/*.test.js` 103개 통과·0개 실패, `npm run build` 성공. 브라우저(모의 모드 5192, 확인 후 종료): 모의 응답이 즉시 와 로딩이 보이지 않아, 원테이크 단계 영역에 컴포넌트를 직접 그려 문장 전환·말풍선 표시 확인, 콘솔 오류 0건.
 - 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. SPEC R5의 "할 일을 다시 정리하고 있어요"는 카드 확인·정보 입력 말풍선의 첫 문장으로 지킴.
 - 확인하지 못한 것: 실제 서버 응답 대기 중 화면(모의 모드는 지연 없음). 커밋하지 않음.
+
+### 2026-10-27 · [codex] 대화 화면 상담 제목 변경
+- 사용자 요청: 대화 화면의 "AI 상담" 문구를 "WON테이크 상담"으로 변경.
+- 바뀐 파일과 이유: frontend/src/screens/ChatScreen.jsx — 대화 화면 제목만 변경. PROGRESS.md — 작업 기록 추가.
+- 실행한 테스트와 결과: 전용 JSX 단위 테스트 없음. npm.cmd --prefix .\frontend run build 성공, 브라우저 대화 화면에서 "WON테이크 상담" 표시 확인.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 없음. 커밋하지 않음.
+
+### 2026-10-27 · [codex] 카드 정지 안내 문장 마침표 추가
+- 사용자 요청: "아직 정지하지 않은 카드가 있어요" 문장 끝에 마침표 추가.
+- 바뀐 파일과 이유: frontend/src/demo/planSteps.js — 카드 보호 미완료 경고 문구에 마침표 추가. PROGRESS.md — 작업 기록 추가.
+- 실행한 테스트와 결과: node --test src\demo\planSteps.test.js 8개 통과·0개 실패, npm.cmd --prefix .\frontend run build 성공, git diff --check 통과.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 브라우저에서 해당 플랜 상태를 재현해 표시를 확인하지 않음. 커밋하지 않음.
+
+### 2026-10-27 · [codex] 상담 답변 보조 문구 hover 표시
+- 사용자 요청: 상담 화면에서 주답변을 제외한 작은 문장은 기본으로 숨기고 커서를 올릴 때만 보이도록 변경.
+- 바뀐 파일과 이유: frontend/src/screens/ChatScreen.jsx — 모의 응답 안내·인식 문장·단계 설명을 보조 문구 컨테이너로 분리. frontend/src/styles/app.css — 보조 문구를 기본 숨김 처리하고 답변 hover 또는 키보드 focus 시 노출. 주답변과 메뉴 버튼은 계속 표시. PROGRESS.md — 작업 기록 추가.
+- 실행한 테스트와 결과: 전용 JSX UI 테스트 없음. node --test src\chat\*.test.js 41개 통과·0개 실패, npm.cmd --prefix .\frontend run build 성공, 브라우저에서 주답변 상시 표시와 보조 문구 hover 표시 확인, git diff --check 통과.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 없음. 커밋하지 않음.
+
+### 2026-10-27 · [codex] 대화 화면 마이크 기호 표시
+- 사용자 요청: 대화 화면의 마이크 버튼 글자를 마이크 기호로 변경.
+- 바뀐 파일과 이유: frontend/src/screens/ChatScreen.jsx — 음성 입력 버튼에 직접 작성한 마이크 SVG 표시, 접근성 이름과 title은 "마이크"로 유지. PROGRESS.md — 작업 기록 추가.
+- 실행한 테스트와 결과: 전용 JSX 단위 테스트 없음. npm.cmd --prefix .\frontend run build 성공, git diff --check 통과.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 브라우저 화면 반영은 재확인 필요. 커밋하지 않음.
+
+### 2026-10-27 · [codex] 상담 답변 도착 시 자동 스크롤
+- 사용자 요청: 상담 답변이 오면 화면이 최신 답변에 맞춰 자동으로 내려오도록 개선.
+- 바뀐 파일과 이유: frontend/src/screens/ChatScreen.jsx — 답변 목록 끝 대신 최신 AI 답변 요소를 스크롤 대상으로 지정하고, 사용자 메시지만 추가될 때에는 이동하지 않도록 처리. frontend/src/styles/app.css — sticky 대화 제목에 답변이 가리지 않도록 스크롤 여백 추가. PROGRESS.md — 작업 기록 추가.
+- 실행한 테스트와 결과: node --test src\chat\*.test.js 41개 통과·0개 실패, npm.cmd --prefix .\frontend run build 성공, 브라우저에서 위로 스크롤한 후 상담 답변 수신 시 최신 답변이 화면 안에 오도록 자동 이동 확인, git diff --check 통과.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 없음. 커밋하지 않음.
+
+### 2026-10-27 · [codex] 내 상담 메시지 자동 스크롤
+- 사용자 요청: 상담 메시지창에서 내 글을 입력할 때도 해당 메시지에 화면 포커스가 맞도록 개선.
+- 바뀐 파일과 이유: frontend/src/screens/ChatScreen.jsx — 마지막 메시지가 사용자 또는 AI 답변이면 해당 메시지로 부드럽게 스크롤하도록 변경. PROGRESS.md — 작업 기록 추가.
+- 실행한 테스트와 결과: 프런트엔드에서 node --test 95개 통과·0개 실패, npm.cmd --prefix .\frontend run build 성공, git diff --check 통과.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 브라우저에서 메시지 전송 후 실제 스크롤 동작은 재현 확인하지 않음. 커밋하지 않음.
+
+### 2026-10-27 · [claude] 팀원(Codex) 작업 6건 합치기
+- 사용자 요청: 다른 팀원이 보낸 txt 파일(planStep.js.txt·app.css.txt·ChatScreen.fix.txt)과 작업 기록 6건을 충돌 없이 합치기. 위 [codex] 6개 항목은 받은 기록을 그대로 옮김.
+- 방법: 받은 파일의 기준이 커밋 c7f7d09임을 확인(줄 차이 비교)하고, c7f7d09를 기준으로 현재 파일과 3방향 병합. planSteps.js·app.css는 충돌 없음.
+- ChatScreen.jsx 충돌 2곳 처리: 스크롤은 팀원 방식(최신 메시지로 스크롤)을 쓰고 기존 threadEnd 스크롤은 뺌. 로봇 입력 중 말풍선(AiThinking)은 유지하고, 답을 기다리는 동안 말풍선으로 스크롤하는 효과를 추가. 제목 "WON테이크 상담", 보조 문구 hover, 마이크 SVG는 팀원 것 그대로.
+- 실행한 테스트와 결과: 프런트 `node --test src/**/*.test.js` 103개 통과·0개 실패, `npm run build` 성공, `git diff --check` 통과. 브라우저(모의 모드 5192, 확인 후 종료): 제목 "WON테이크 상담", 마이크 SVG, 보조 문구 기본 숨김, 답이 온 뒤 로딩 말풍선 없음, 콘솔 오류 0건.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 실제 서버 응답 대기 중 말풍선 스크롤(모의 모드는 지연 없음). 커밋하지 않음.
+
+### 2026-10-27 · [claude] "카드 분실" 짧은 입력도 카드 분실 플랜으로
+- 사용자 요청: "카드 분실"만 쳐도 나오던 플랜 요약 카드가 안 나옴 → 수정과 이유.
+- 원인: 화면 코드가 아니라 AI 판단. 8080 서버(CLAUDE 모드)에 직접 물어보니 "카드를 분실했어"는 PLAN, "카드 분실"은 ANSWER(card-loss-report 메뉴 하나·긴 안내)로 옴. 지침이 "사건이면 plan, 메뉴 하나를 묻는 질문이면 기존 답"이라 낱말 두 개짜리 입력이 메뉴 이름처럼 해석될 수 있어 실행마다 결과가 갈림.
+- 바뀐 파일과 이유: backend resources/ai/chat-system.txt (사건 낱말만 짧게 말해도 사건으로 보고 plan, 메뉴·화면 위치나 사용법을 물을 때만 메뉴 하나로 답한다는 문장과 예시 추가), test ai/MenuIntentContractTest.java (지침에 이 규칙이 들어가는지 검사 1개), PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 먼저 실패 확인 후 지침 수정. 백엔드 `gradlew test` 257개 통과·0개 실패.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침(SPEC R5 "사건을 말하면 플랜"에 맞춘 지침 보완).
+- 재시작 후 확인(CLAUDE 모드 8080): API로 "카드 분실" 2번 모두 PLAN(카드 분실, 4블록), "카드 분실신고 메뉴 어디 있어요"는 ANSWER(card-loss-report). 브라우저(5173)에서 "카드 분실" 입력 → 로봇 말풍선 "말씀을 읽고 있어요" → 카드 분실 요약 카드(5단계, [지금 해결하기]) 표시. Claude 호출 4회 사용.
+- 확인하지 못한 것: AI 판단이라 매번 PLAN을 100% 보장하지는 않음. 커밋하지 않음.
