@@ -256,6 +256,25 @@ class ClaudeAiClientTest {
         response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amountRef\":\"amount-2\"}]}");
         assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().fill(fillContext())).code);
     }
+    /** Claude는 type 배열 ["string","null"]과 문자열 enum을 같이 쓰면 400을 준다(2026-10-27 Haiku 5.5 실측). anyOf로 나눠야 한다. */
+    @Test void 금액_참조_스키마는_문자열_enum과_null을_anyOf로_나눈다() {
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[]}");
+        client().plan(planContext());
+        var amount=new JsonMapper().readTree(body.get()).at("/output_config/format/schema/properties/tasks/items/properties/amountRef");
+        assertFalse(amount.has("type"));
+        assertEquals("string",amount.at("/anyOf/0/type").asText());
+        assertEquals("amount-1",amount.at("/anyOf/0/enum/0").asText());
+        assertEquals(1,amount.at("/anyOf/0/enum").size());
+        assertEquals("null",amount.at("/anyOf/1/type").asText());
+    }
+    @Test void 금액이_없는_요청의_금액_참조는_null만_허용한다() {
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[]}");
+        client().plan(new AiClient.PlanContext("엄마한테 보내줘",List.of()));
+        var amount=new JsonMapper().readTree(body.get()).at("/output_config/format/schema/properties/tasks/items/properties/amountRef");
+        assertEquals("null",amount.path("type").asText());
+        assertFalse(amount.has("enum"));
+        assertFalse(amount.has("anyOf"));
+    }
     AiClient.FillContext fillContext() { return new AiClient.FillContext(List.of("집주인"),"65만원이요"); }
     @Test void fillUsesItsOwnPromptAndOnlyAllowsAskedTargets() {
         response=planResponse("{\"amounts\":[{\"target\":\"집주인\",\"amountRef\":\"amount-1\"}]}");
