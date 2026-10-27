@@ -8,17 +8,29 @@ export function PlanBanner({ state }) {
   const { params, navigate } = useNavigation();
   const progress = params.planId ? state?.plans?.[params.planId] : null;
   if (!progress) return null;
-  const done = progress.done === progress.total;
+  // 필수 블록을 다 해도 필수 목표가 확보되지 않으면 완료로 보이지 않는다(R5 목표 중심).
+  const done = Boolean(progress.complete);
   return (
     <div className={`plan-banner${done ? ' done' : ''}`} role="status">
       <span>
-        원테이크 플랜 {progress.done}/{progress.total} 완료
+        원테이크 플랜 {done ? '완료' : `필수 ${progress.done}/${progress.total}`}
         {progress.events?.length > 0 && ` · ${progress.events.join(' · ')}`}
       </span>
-      <button type="button" data-track-id="plan-back" onClick={() => navigate('chat')}>
+      <button type="button" data-track-id="plan-back" onClick={() => navigate('plan', { planId: params.planId })}>
         플랜으로 돌아가기
       </button>
     </div>
+  );
+}
+
+/** 플랜에서 들어와 처리를 마치면 화면 아래에 다음 단계로 가는 큰 버튼을 둔다(디지털 취약 계층 기준). */
+function NextStep() {
+  const { params, navigate } = useNavigation();
+  if (!params.planId) return null;
+  return (
+    <button className="primary biz-next" type="button" data-track-id="plan-next" onClick={() => navigate('plan', { planId: params.planId })}>
+      다음 단계로
+    </button>
   );
 }
 
@@ -31,6 +43,7 @@ export default function BizLayout({ category, title, lead, state, error, message
       <h1>{title}</h1>
       {lead && <p className="muted">{lead}</p>}
       {message && <p className="biz-message" role="status">{message}</p>}
+      {message && <NextStep />}
       {error && <p className="error" role="alert">{error}</p>}
       {!state && !error ? <p className="muted">불러오고 있어요.</p> : state && children}
       <p className="biz-notice">

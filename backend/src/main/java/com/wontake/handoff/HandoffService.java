@@ -45,7 +45,10 @@ public class HandoffService {
             // 정리할 기록이 없으면 AI를 부르지 않는다. 세션당 요약 호출 수도 제한한다(크레딧 보호).
             if(turns.isEmpty() && timeline.isEmpty() && progress.isEmpty()) throw new ApiException(200,"NOTHING_TO_SUMMARIZE","정리할 대화가 없어요.");
             if(!guard.summary(sessionId)) throw new ApiException(429,"SUMMARY_LIMIT","요약 횟수를 모두 썼어요.");
-            var s=ai.summarize(new AiClient.HandoffContext(turns,timeline,consent,help,catalog.all(),progressForAi));
+            // 작업 25: 요약 입력도 가명화한다(상담사 화면의 원문은 그대로).
+            var red=plans==null?null:plans.redactor();
+            var s=ai.summarize(red==null?new AiClient.HandoffContext(turns,timeline,consent,help,catalog.all(),progressForAi)
+                :new AiClient.HandoffContext(red.turns(userId,sessionId,turns),red.events(userId,sessionId,timeline),consent,red.help(userId,sessionId,help),catalog.all(),progressForAi));
             var values=s==null?Arrays.<String>asList(null,null,null,null):Arrays.asList(s.purpose(),s.stuckPoint(),s.triedActions(),s.unresolved());
             for(int i=0;i<FIELDS.size();i++) draft.put(FIELDS.get(i),clean(plans==null?values.get(i):plans.restore(userId,sessionId,values.get(i))));
             // FAKE 모드 요약은 기록을 규칙으로 옮긴 것이라 AI 요약으로 표시하지 않는다.

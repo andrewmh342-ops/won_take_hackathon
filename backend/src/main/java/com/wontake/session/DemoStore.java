@@ -55,7 +55,7 @@ public class DemoStore {
     public boolean event(String userId, String sessionId, String type, String screenId, String elementId, String query) {
         if (!Set.of("SCREEN_ENTER", "CLICK", "SEARCH").contains(Objects.toString(type, ""))) throw ApiException.invalid("이벤트 유형을 확인해 주세요.");
         if (!Set.of("home", "menu", "transfer", "account", "security", "certificate", "exchange", "card", "chat",
-            "card-list", "card-reissue", "subscription", "simple-pay", "overseas", "travel-card", "fx-rate", "exchange-apply", "travel-insurance").contains(Objects.toString(screenId, ""))) throw ApiException.invalid("화면을 확인해 주세요.");
+            "card-list", "card-reissue", "subscription", "simple-pay", "overseas", "travel-card", "fx-rate", "exchange-apply", "travel-insurance", "plan").contains(Objects.toString(screenId, ""))) throw ApiException.invalid("화면을 확인해 주세요.");
         if (elementId != null && elementId.length() > 120 || query != null && query.length() > 2000) throw ApiException.invalid("기록 길이를 확인해 주세요.");
         var s = session(userId, sessionId);
         synchronized(s) {

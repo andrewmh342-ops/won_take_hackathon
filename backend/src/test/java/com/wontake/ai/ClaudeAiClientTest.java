@@ -110,8 +110,8 @@ class ClaudeAiClientTest {
         var request=mapper.readTree(body.get());
         var scope=request.at("/output_config/format/schema/properties/scope/enum");
         assertEquals(2,scope.size());
-        assertEquals("low",request.at("/output_config/effort").asText());
-        assertTrue(request.path("max_tokens").asInt()>=4000);
+        assertEquals("medium",request.at("/output_config/effort").asText()); // SPEC R5 목표 중심: low→medium
+        assertTrue(request.path("max_tokens").asInt()>=8000);
         assertTrue(request.path("system").asText().contains("금융앱"));
         assertFalse(request.has("temperature"));
     }
@@ -127,9 +127,26 @@ class ClaudeAiClientTest {
         var request=mapper.readTree(body.get());
         var enumIds=request.at("/output_config/format/schema/properties/plan/properties/blocks/items/properties/blockId/enum");
         assertTrue(enumIds.toString().contains("card-reissue"));
-        assertEquals(11,enumIds.size());
+        assertEquals(13,enumIds.size()); // SPEC R5 목표 중심: 블록 11→13
         assertFalse(request.at("/output_config/format/schema/properties/plan/additionalProperties").asBoolean());
         assertTrue(request.path("system").asText().contains("업무 블록"));
+    }
+    @Test void planSchemaAsksGoalsObstaclesConsideredAndPriority() {
+        var mapper=new JsonMapper();
+        var plan=Map.of("events",List.of("트래블카드 분실","일본 여행"),"blocks",List.of(Map.of("blockId","ask-info","targetRef","","param","DEPARTURE_DATE","reason","출국일","priority","REQUIRED")),
+            "unhandled",List.of(),"orderReason","보호 먼저","goals",List.of(Map.of("type","PAYMENT_ABROAD","text","일본에서 결제","required",true)),
+            "obstacles",List.of(Map.of("text","재발급 수령이 늦을 수 있음","resolution","QUESTION","blockIndexes",List.of(0))),
+            "considered",List.of(Map.of("blockId","travel-insurance-guide","reason","지금 문제와 무관")));
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("scope","IN_SCOPE","reply","정리했어요","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"plan",plan))))));
+        var answer=client().answer(context());
+        assertEquals("PAYMENT_ABROAD",answer.plan().goals().getFirst().type());
+        assertEquals("QUESTION",answer.plan().obstacles().getFirst().resolution());
+        assertEquals("travel-insurance-guide",answer.plan().considered().getFirst().blockId());
+        assertEquals("REQUIRED",answer.plan().blocks().getFirst().priority());
+        var props=mapper.readTree(body.get()).at("/output_config/format/schema/properties/plan/properties");
+        for (var key : List.of("goals","obstacles","considered")) assertTrue(props.has(key),key);
+        assertTrue(props.at("/blocks/items/properties/priority/enum").size()==2);
     }
     @Test void malformedPlanIsRejected() {
         var mapper=new JsonMapper();

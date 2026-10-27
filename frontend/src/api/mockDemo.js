@@ -2,10 +2,10 @@
 import { toKrw } from '../demo/fx.js';
 
 const card = (ref, name, kind, last4, extra) => ({
-  ref, name, kind, last4, display: `${name} 끝자리 ${last4}(가상)`, travel: false, status: 'ACTIVE', reissued: false,
+  ref, name, kind, last4, display: `${name} 끝자리 ${last4}(가상)`, travel: false, status: 'ACTIVE', usable: true, reissued: false,
   simplePay: false, simplePayName: '', overseasPayment: true, subscriptions: [], ...extra,
 });
-const sub = (id, category, merchant, amount, billingDay) => ({ id, category, merchant, amount, billingDay, status: 'ACTIVE' });
+const sub = (id, category, merchant, amount, billingDay) => ({ id, category, merchant, amount, billingDay, status: 'ACTIVE', movedTo: '', movedFrom: '' });
 const today = new Date().toISOString().slice(0, 10);
 
 const state = {
@@ -46,24 +46,32 @@ export const mockDemo = {
   async getState() {
     return copy();
   },
-  async act({ action, ref, choices, on, account, receive, currency, amount, branch, date }) {
+  async act({ action, ref, choices, toRef, on, account, receive, currency, amount, branch, date }) {
     const target = find(ref);
-    if (action === 'CARD_STOP') target.status = 'STOPPED';
+    if (action === 'CARD_STOP') { target.status = 'STOPPED'; target.usable = false; }
     if (action === 'CARD_REISSUE') {
       if (target.status !== 'STOPPED') throw new Error('먼저 분실신고를 해 주세요.');
       target.reissued = true;
     }
     if (action === 'SUBSCRIPTION') {
-      for (const [id, choice] of Object.entries(choices)) {
-        const item = target.subscriptions.find((s) => s.id === id);
-        if (choice === 'SWITCH' && !target.reissued) throw new Error('새 카드를 신청한 뒤 옮길 수 있어요.');
-        if (item.status === 'ACTIVE') item.status = choice === 'SWITCH' ? 'SWITCHED' : 'CANCELLED';
+      // 작업 24: 고객이 고른 다른 사용 중 보유 카드로 옮긴다(백엔드와 같은 검사).
+      const entries = Object.entries(choices).map(([id, choice]) => [target.subscriptions.find((s) => s.id === id && s.status === 'ACTIVE'), choice]).filter(([item]) => item);
+      const to = find(toRef);
+      if (entries.some(([, choice]) => choice === 'SWITCH')) {
+        if (!toRef) throw new Error('옮길 카드를 골라 주세요.');
+        if (!to || to === target || !to.usable) throw new Error('지금 쓸 수 있는 다른 카드를 골라 주세요.');
+      }
+      for (const [item, choice] of entries) {
+        if (choice !== 'SWITCH') { item.status = 'CANCELLED'; continue; }
+        item.status = 'SWITCHED';
+        item.movedTo = to.ref;
+        to.subscriptions.push({ ...item, status: 'ACTIVE', movedTo: '', movedFrom: target.ref });
       }
     }
     if (action === 'SIMPLE_PAY_UNLINK') target.simplePay = false;
     if (action === 'OVERSEAS') target.overseasPayment = on;
     if (action === 'TRAVEL_CARD_APPLY') {
-      if (state.hasTravelCard) throw new Error('이미 트래블카드가 있어요.');
+      if (state.cards.some((c) => c.travel && c.usable)) throw new Error('이미 쓸 수 있는 트래블카드가 있어요.');
       state.travelCardApplication = { account, receive: receive === 'MAIL' ? '우편 수령' : '영업점 수령', appliedOn: today, status: '발급 대기(가상)' };
     }
     if (action === 'EXCHANGE_APPLY') {

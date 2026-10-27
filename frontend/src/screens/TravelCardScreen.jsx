@@ -11,7 +11,9 @@ export default function TravelCardScreen() {
   const [account, setAccount] = useState('');
   const [receive, setReceive] = useState('MAIL');
   const [confirm, setConfirm] = useState(false);
-  const travelCards = (state?.cards ?? []).filter((card) => card.travel);
+  // 보유와 사용 가능을 구분한다: 정지된 트래블카드는 '없음'과 같이 새로 신청할 수 있다.
+  const travelCards = (state?.cards ?? []).filter((card) => card.travel && card.usable);
+  const stoppedTravel = (state?.cards ?? []).filter((card) => card.travel && !card.usable);
   const application = state?.travelCardApplication;
   const accountId = account || state?.accounts?.[0]?.id || '';
 
@@ -50,7 +52,11 @@ export default function TravelCardScreen() {
         </div>
       ) : (
         <form className="biz-form" onSubmit={(event) => { event.preventDefault(); setConfirm(true); }}>
-          <p>보유한 트래블카드가 없어요. 새로 신청할 수 있어요.</p>
+          {stoppedTravel.length > 0 ? (
+            <p>보유한 {stoppedTravel[0].display}는 정지되어 지금 쓸 수 없어요. 재발급을 기다리거나 새로 신청할 수 있어요.</p>
+          ) : (
+            <p>보유한 트래블카드가 없어요. 새로 신청할 수 있어요.</p>
+          )}
           <label>
             연결할 출금 계좌
             <select value={accountId} onChange={(event) => setAccount(event.target.value)}>

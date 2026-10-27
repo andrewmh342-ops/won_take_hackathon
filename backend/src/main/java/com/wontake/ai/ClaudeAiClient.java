@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClaudeAiClient implements AiClient {
     /** Sonnet 5.5는 기본으로 사고(thinking)하고 그 토큰도 max_tokens에 들어간다. 답이 잘리지 않게 여유를 둔다. */
-    static final int MAX_TOKENS = 4096;
+    static final int MAX_TOKENS = 8000;
     static final String FALLBACK_BETA = "server-side-fallback-2026-07-01";
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JsonMapper json = new JsonMapper();
@@ -50,7 +50,7 @@ public class ClaudeAiClient implements AiClient {
                 "scope", Map.of("type", "string", "enum", List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE)),
                 "plan", planSchema(context));
             var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff", "plan"), "additionalProperties", false);
-            var value=call(context,schema,system,"low");
+            var value=call(context,schema,system,"medium"); // 목표·장애물을 엮는 판단(R5 목표 중심)
             // schema가 scope·handoff를 요구하지만, 빠진 응답은 범위 안·강조 없음으로 본다.
             boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope"), hasPlan=value.has("plan");
             if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0)+(hasPlan?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
@@ -64,14 +64,30 @@ public class ClaudeAiClient implements AiClient {
     }
     private static final List<String> DEFAULT_BLOCK_IDS = new BlockCatalog().ids();
     /** R5 플랜 schema. blockId는 블록 사전 enum이라 사전 밖 블록을 지어낼 수 없다. */
+    /** R5 플랜 schema. blockId는 블록 사전 enum이라 사전 밖 블록을 지어낼 수 없다. 목표·장애물·제외 이유·필수/선택을 함께 받는다. */
     private static Map<String,Object> planSchema(Context context) {
         var ids = context.blocks() != null ? context.blocks().stream().map(BlockInfo::id).toList() : DEFAULT_BLOCK_IDS;
         var text = Map.of("type", "string");
-        var block = Map.of("type", "object", "properties", Map.of("blockId", Map.of("type", "string", "enum", ids), "targetRef", text, "param", text, "reason", text),
-            "required", List.of("blockId", "targetRef", "param", "reason"), "additionalProperties", false);
-        return Map.of("type", "object", "properties", Map.of("events", Map.of("type", "array", "items", text), "blocks", Map.of("type", "array", "items", block),
-            "unhandled", Map.of("type", "array", "items", text), "orderReason", text),
-            "required", List.of("events", "blocks", "unhandled", "orderReason"), "additionalProperties", false);
+        var block = Map.of("type", "object", "properties", Map.of("blockId", Map.of("type", "string", "enum", ids), "targetRef", text, "param", text, "reason", text,
+                "priority", Map.of("type", "string", "enum", List.of("REQUIRED", "OPTIONAL"))),
+            "required", List.of("blockId", "targetRef", "param", "reason", "priority"), "additionalProperties", false);
+        var goal = Map.of("type", "object", "properties", Map.of("type", Map.of("type", "string", "enum", List.of("CARD_PROTECTION", "PAYMENT_ABROAD", "CASH_ABROAD", "OTHER")),
+                "text", text, "required", Map.of("type", "boolean")),
+            "required", List.of("type", "text", "required"), "additionalProperties", false);
+        var obstacle = Map.of("type", "object", "properties", Map.of("text", text, "resolution", Map.of("type", "string", "enum", List.of("BLOCK", "QUESTION", "HANDOFF")),
+                "blockIndexes", Map.of("type", "array", "items", Map.of("type", "integer"))),
+            "required", List.of("text", "resolution", "blockIndexes"), "additionalProperties", false);
+        var considered = Map.of("type", "object", "properties", Map.of("blockId", Map.of("type", "string", "enum", ids), "reason", text),
+            "required", List.of("blockId", "reason"), "additionalProperties", false);
+        var props = new LinkedHashMap<String, Object>();
+        props.put("events", Map.of("type", "array", "items", text));
+        props.put("goals", Map.of("type", "array", "items", goal));
+        props.put("obstacles", Map.of("type", "array", "items", obstacle));
+        props.put("blocks", Map.of("type", "array", "items", block));
+        props.put("considered", Map.of("type", "array", "items", considered));
+        props.put("unhandled", Map.of("type", "array", "items", text));
+        props.put("orderReason", text);
+        return Map.of("type", "object", "properties", props, "required", List.copyOf(props.keySet()), "additionalProperties", false);
     }
     private AiPlan parsePlan(tools.jackson.databind.JsonNode p) {
         if (!p.isObject() || !p.path("events").isArray() || !p.path("blocks").isArray() || !p.path("unhandled").isArray() || !p.path("orderReason").isTextual()) throw invalid();
@@ -80,9 +96,26 @@ public class ClaudeAiClient implements AiClient {
         for (var n : p.path("unhandled")) { if (!n.isTextual()) throw invalid(); unhandled.add(n.asText()); }
         for (var n : p.path("blocks")) {
             if (!n.isObject() || !n.path("blockId").isTextual() || !n.path("targetRef").isTextual() || !n.path("param").isTextual() || !n.path("reason").isTextual()) throw invalid();
-            blocks.add(new AiBlock(n.path("blockId").asText(), n.path("targetRef").asText(), n.path("param").asText(), n.path("reason").asText()));
+            String priority = n.path("priority").isTextual() ? n.path("priority").asText() : "REQUIRED"; // 표시가 없으면 필수
+            blocks.add(new AiBlock(n.path("blockId").asText(), n.path("targetRef").asText(), n.path("param").asText(), n.path("reason").asText(), priority));
         }
-        return new AiPlan(events, blocks, unhandled, p.path("orderReason").asText());
+        // 목표·장애물·제외 이유는 없어도 된다(이전 형식 호환). 있으면 모양을 검사한다.
+        var goals = new ArrayList<AiGoal>(); var obstacles = new ArrayList<AiObstacle>(); var considered = new ArrayList<AiConsidered>();
+        for (var n : p.path("goals")) {
+            if (!n.path("type").isTextual() || !n.path("text").isTextual()) throw invalid();
+            goals.add(new AiGoal(n.path("type").asText(), n.path("text").asText(), n.path("required").asBoolean(true)));
+        }
+        for (var n : p.path("obstacles")) {
+            if (!n.path("text").isTextual()) throw invalid();
+            var indexes = new ArrayList<Integer>();
+            for (var i : n.path("blockIndexes")) if (i.isIntegralNumber()) indexes.add(i.asInt());
+            obstacles.add(new AiObstacle(n.path("text").asText(), n.path("resolution").asText("BLOCK"), indexes));
+        }
+        for (var n : p.path("considered")) {
+            if (!n.path("blockId").isTextual() || !n.path("reason").isTextual()) throw invalid();
+            considered.add(new AiConsidered(n.path("blockId").asText(), n.path("reason").asText()));
+        }
+        return new AiPlan(events, blocks, unhandled, p.path("orderReason").asText(), goals, obstacles, considered);
     }
     @Override public ProactiveSuggestion suggest(BehaviorContext context) {
         var properties=Map.of("shouldOffer",Map.of("type","boolean"),"question",Map.of("type","string"),

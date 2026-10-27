@@ -8,10 +8,12 @@ import java.util.*;
 /** R5 업무 블록 사전(blocks.json). AI는 이 안에서만 고른다. */
 @Component
 public class BlockCatalog {
+    /** effect는 이 업무를 하면 무엇이 달라지는지, achieves는 해소하는 목표 종류(신청 접수는 목표 달성이 아님). */
     public record Block(String id, String name, String menuId, String type, String target, String param,
-                        List<String> requires, String skipWhen, String description) {
+                        List<String> requires, String skipWhen, String description, String effect, List<String> achieves, String leadTime) {
         public boolean cardTarget() { return "CARD".equals(target); }
         public boolean currencyParam() { return "CURRENCY".equals(param); }
+        public boolean infoParam() { return "INFO".equals(param); }
     }
     private final List<Block> blocks;
     public BlockCatalog() {
@@ -28,6 +30,7 @@ public class BlockCatalog {
     public Block find(String id) { return blocks.stream().filter(b -> b.id().equals(id)).findFirst().orElse(null); }
     /** AI 입력용 사전. skipWhen은 서버 검증용이라 보내지 않는다. */
     public List<BlockInfo> forAi() {
-        return blocks.stream().map(b -> new BlockInfo(b.id(), b.name(), b.type(), b.target(), b.param(), b.requires(), b.description())).toList();
+        return blocks.stream().map(b -> new BlockInfo(b.id(), b.name(), b.type(), b.target(), b.param(), b.requires(), b.description(),
+            b.effect(), b.achieves(), b.leadTime())).toList();
     }
 }

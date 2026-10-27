@@ -30,6 +30,10 @@ public class DemoActionService {
     public Map<String, Object> act(String userId, String sessionId, Map<String, Object> body) {
         var state = profiles.state(userId, sessionId);
         String action = text(body, "action");
+        // 작업 23: 플랜에서 넘어온 카드 처리는 고객이 분실 카드를 확인한 뒤에만 한다(메뉴로 직접 들어오면 고객이 고른 카드라 그대로 처리).
+        String planId = text(body, "planId");
+        if (!planId.isEmpty() && Set.of("CARD_STOP", "CARD_REISSUE", "SIMPLE_PAY_UNLINK", "SUBSCRIPTION").contains(action)
+            && plans.awaitingCardConfirm(userId, sessionId, planId)) throw PlanService.unconfirmed();
         synchronized (state) {
             switch (action) {
                 case "CARD_STOP" -> card(state, body).status = "STOPPED";
@@ -38,7 +42,7 @@ public class DemoActionService {
                     if (!"STOPPED".equals(c.status)) throw new ApiException(409, "CARD_NOT_STOPPED", "먼저 분실신고를 해 주세요.");
                     c.reissued = true;
                 }
-                case "SUBSCRIPTION" -> subscription(card(state, body), body.get("choices"));
+                case "SUBSCRIPTION" -> subscription(state, card(state, body), body.get("choices"), text(body, "toRef"));
                 case "SIMPLE_PAY_UNLINK" -> card(state, body).simplePay = false;
                 case "OVERSEAS" -> {
                     var c = card(state, body);
@@ -59,28 +63,24 @@ public class DemoActionService {
         synchronized (state) { return view(state); }
     }
 
-    private void subscription(CardState card, Object raw) {
+    private void subscription(CustomerState state, CardState card, Object raw, String toRef) {
         if (!(raw instanceof Map<?, ?> choices) || choices.isEmpty()) throw ApiException.invalid("처리할 구독을 골라 주세요.");
         var picked = new LinkedHashMap<AutoPayment, String>();
         for (var e : choices.entrySet()) {
-            var ap = card.autoPayments.stream().filter(a -> a.id.equals(String.valueOf(e.getKey()))).findFirst()
-                .orElseThrow(() -> ApiException.invalid("구독을 확인해 주세요."));
+            var ap = CustomerState.subscription(card, String.valueOf(e.getKey()));
+            if (ap == null) throw ApiException.invalid("구독을 확인해 주세요.");
             String choice = String.valueOf(e.getValue());
-            if (!Set.of("SWITCH", "CANCEL").contains(choice)) throw ApiException.invalid("새 카드로 변경 또는 해지를 골라 주세요.");
+            if (!Set.of("SWITCH", "CANCEL").contains(choice)) throw ApiException.invalid("다른 카드로 변경 또는 해지를 골라 주세요.");
             picked.put(ap, choice);
         }
-        // 모두 검사한 뒤 바꾼다(일부만 바뀌지 않게).
-        if (picked.entrySet().stream().anyMatch(e -> "SWITCH".equals(e.getValue()) && "ACTIVE".equals(e.getKey().status)) && !card.reissued)
-            throw new ApiException(409, "NOT_REISSUED", "새 카드를 신청한 뒤 옮길 수 있어요.");
-        for (var e : picked.entrySet())
-            if ("ACTIVE".equals(e.getKey().status)) e.getKey().status = "SWITCH".equals(e.getValue()) ? "SWITCHED" : "CANCELLED";
+        state.moveSubscriptions(card, picked, toRef);
     }
 
     private void travelCard(CustomerState state, Map<String, Object> body) {
         var account = option(profiles.accounts(), text(body, "account"), "출금 계좌를 골라 주세요.");
         String receive = text(body, "receive");
         if (!RECEIVE.contains(receive)) throw ApiException.invalid("수령 방법을 골라 주세요.");
-        if (state.hasTravelCard) throw new ApiException(409, "TRAVEL_CARD_EXISTS", "이미 트래블카드가 있어요.");
+        if (state.hasUsableTravelCard()) throw new ApiException(409, "TRAVEL_CARD_EXISTS", "이미 쓸 수 있는 트래블카드가 있어요.");
         if (state.travelCardApplication != null) return; // 이미 신청: 같은 결과
         state.travelCardApplication = new TravelCardApplication(account.name(), "MAIL".equals(receive) ? "우편 수령" : "영업점 수령",
             LocalDate.now(clock).toString(), "발급 대기(가상)");
@@ -109,15 +109,17 @@ public class DemoActionService {
         for (var c : s.cards) {
             var m = new LinkedHashMap<String, Object>();
             m.put("ref", c.ref); m.put("name", c.name); m.put("kind", c.kind); m.put("last4", c.last4); m.put("display", c.display());
-            m.put("travel", c.travel); m.put("status", c.status); m.put("reissued", c.reissued);
+            m.put("travel", c.travel); m.put("status", c.status); m.put("reissued", c.reissued); m.put("usable", c.usable());
             m.put("simplePay", c.simplePay); m.put("simplePayName", c.simplePayName); m.put("overseasPayment", c.overseasPayment);
             var subs = new ArrayList<Map<String, Object>>();
-            for (var a : c.autoPayments) subs.add(Map.of("id", a.id, "category", a.category, "merchant", a.merchant, "amount", a.amount, "billingDay", a.billingDay, "status", a.status));
+            for (var a : c.autoPayments) subs.add(Map.of("id", a.id, "category", a.category, "merchant", a.merchant, "amount", a.amount, "billingDay", a.billingDay,
+                "status", a.status, "movedTo", a.movedTo, "movedFrom", a.movedFrom));
             m.put("subscriptions", subs);
             cards.add(m);
         }
         out.put("cards", cards);
         out.put("hasTravelCard", s.hasTravelCard);
+        out.put("hasUsableTravelCard", s.hasUsableTravelCard());
         out.put("travelCardApplication", s.travelCardApplication);
         var rates = new ArrayList<Map<String, Object>>();
         profiles.rates().forEach((code, r) -> rates.add(Map.of("code", code, "name", r.name(), "unit", r.unit(), "krw", r.krw())));

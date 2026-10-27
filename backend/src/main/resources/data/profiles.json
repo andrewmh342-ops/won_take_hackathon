@@ -44,6 +44,21 @@
             { "id": "ap-2", "category": "OTT", "merchant": "티빙", "amount": 13500, "billingDay": 9 }
           ] }
       ]
+    },
+    "C": {
+      "label": "시연 고객 C",
+      "cards": [
+        {
+          "ref": "card-1",
+          "name": "우리 트래블 체크카드",
+          "kind": "체크",
+          "last4": "6408",
+          "travel": true,
+          "simplePay": "",
+          "overseasPayment": true,
+          "autoPayments": []
+        }
+      ]
     }
   }
 }

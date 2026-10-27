@@ -1,5 +1,5 @@
 // 담당: 공용 — 프론트 시연 전용 고정 응답 (실제 AI 분석 아님)
-import { buildMockPlan, executeMockPlan } from './mockPlan.js';
+import { buildMockPlan, executeMockPlan, confirmMockPlan, answerMockPlan } from './mockPlan.js';
 let agreed = null;
 const plans = new Map();
 let never = localStorage.getItem('wontake-demo-never') === 'true';
@@ -169,6 +169,28 @@ export const mock = {
     const plan = plans.get(planId);
     if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
     const next = executeMockPlan(plan, index);
+    plans.set(planId, next);
+    return next;
+  },
+  async getPlan(planId) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    return plan;
+  },
+  async reviewPlan(planId) {
+    return this.getPlan(planId); // 모의: 새 할 일 없음
+  },
+  async confirmCards(planId, refs) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    const next = confirmMockPlan(plan, refs);
+    plans.set(planId, next);
+    return next;
+  },
+  async answerPlan(planId, index, value) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    const next = answerMockPlan(plan, index, value);
     plans.set(planId, next);
     return next;
   },
