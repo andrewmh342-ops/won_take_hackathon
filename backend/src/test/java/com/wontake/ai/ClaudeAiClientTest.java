@@ -109,11 +109,19 @@ class ClaudeAiClientTest {
         assertEquals("OUT_OF_SCOPE",client().answer(context()).scope());
         var request=mapper.readTree(body.get());
         var scope=request.at("/output_config/format/schema/properties/scope/enum");
-        assertEquals(2,scope.size());
+        assertEquals(List.of("IN_SCOPE","OUT_OF_SCOPE","TRANSFER_PLAN"),List.of(scope.get(0).asText(),scope.get(1).asText(),scope.get(2).asText()));
         assertEquals("low",request.at("/output_config/effort").asText());
         assertTrue(request.path("max_tokens").asInt()>=4000);
         assertTrue(request.path("system").asText().contains("금융앱"));
         assertFalse(request.has("temperature"));
+    }
+    @Test void chatCanHandTransferBundlesToPlan() {
+        var mapper=new JsonMapper();
+        response=mapper.writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",
+            mapper.writeValueAsString(Map.of("reply","","normalized","","menuIds",List.of(),"steps",List.of(),"handoff",false,"scope","TRANSFER_PLAN"))))));
+        var answer=client().answer(context());
+        assertTrue(answer.transferPlan());
+        assertTrue(mapper.readTree(body.get()).path("system").asText().contains("TRANSFER_PLAN"));
     }
     @Test void refusalIsReportedSeparately() {
         response="{\"stop_reason\":\"refusal\",\"content\":[]}";
@@ -167,5 +175,24 @@ class ClaudeAiClientTest {
         assertEquals("instant-transfer",input.at("/visits/0/menuId").asText());
         assertEquals("overseas-remittance",input.at("/visits/1/menuId").asText());
         assertEquals(1000,input.at("/visits/0/dwellMillis").asLong());
+    }
+    String planResponse(String text) { return new JsonMapper().writeValueAsString(Map.of("stop_reason","end_turn","content",List.of(Map.of("type","text","text",text)))); }
+    AiClient.PlanContext planContext() { return new AiClient.PlanContext("월세 내고 엄마한테 30만원",List.of(new AiClient.Payee("엄마","CONTACT",List.of("엄마","어머니")))); }
+    @Test void planUsesItsOwnPromptAndReadsNullAmountAsUnsaid() {
+        response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[{\"target\":\"집주인\",\"amount\":null,\"memo\":\"월세\"},{\"target\":\"엄마\",\"amount\":300000,\"memo\":\"\"}]}");
+        var result=client().plan(planContext());
+        assertEquals(List.of(new AiClient.TaskDraft("집주인",null,"월세"),new AiClient.TaskDraft("엄마",300_000L,"")),result.tasks());
+        var mapper=new JsonMapper();
+        var request=mapper.readTree(body.get());
+        assertTrue(request.path("system").asText().contains("작업 목록"));
+        assertTrue(request.at("/output_config/format/schema/properties/tasks/items/properties/amount").isObject());
+        var input=mapper.readTree(request.at("/messages/0/content").asText());
+        assertEquals("엄마",input.at("/payees/0/name").asText());
+    }
+    @Test void planRejectsNonIntegerAmounts() {
+        for (var amount : List.of("\"50만원\"","1.5","1e30")) {
+            response=planResponse("{\"scope\":\"IN_SCOPE\",\"tasks\":[{\"target\":\"엄마\",\"amount\":"+amount+",\"memo\":\"\"}]}");
+            assertEquals("AI_INVALID_RESPONSE",assertThrows(ApiException.class,()->client().plan(planContext())).code,amount);
+        }
     }
 }

@@ -6,6 +6,7 @@ import Popup from '../components/Popup.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 import { findMenu } from '../data/menu.js';
+import PlanCard from '../plan/PlanCard.jsx';
 
 const responseText = {
   NOT_FOUND: '말씀하신 내용을 찾지 못했어요. 다른 표현으로 다시 물어봐 주세요.',
@@ -77,6 +78,7 @@ export default function ChatScreen() {
             steps: Array.isArray(result.steps) ? result.steps : [],
             notFoundStreak: result.notFoundStreak,
             handoffSuggested: result.handoffSuggested,
+            plan: result.plan,
           },
         ]);
       } catch (requestError) {
@@ -276,6 +278,7 @@ export default function ChatScreen() {
                   ))}
                 </ol>
               )}
+              {message.role === 'ASSISTANT' && message.plan && <PlanCard plan={message.plan} />}
               {menuItems.map((menuItem) => (
                 <button
                   key={menuItem.id}

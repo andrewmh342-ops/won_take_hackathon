@@ -1467,3 +1467,91 @@ input::placeholder {
   color: var(--warning);
   background: #fff0f0;
 }
+/* 한 번에 맡기기: AI 대화 안의 작업 카드(PlanCard) */
+.plan-card {
+  margin-top: 12px;
+}
+.plan-foot {
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.plan-note.warn,
+.plan-summary .warn {
+  color: var(--warning);
+}
+.plan-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0;
+}
+.plan-summary > div {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 16px;
+}
+.plan-summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.plan-summary strong {
+  font-size: 18px;
+}
+.plan-tasks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plan-tasks li {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+}
+.plan-tasks li.pending {
+  border-style: dashed;
+}
+.plan-task-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.plan-badge {
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--bg);
+  color: var(--muted);
+}
+.plan-badge.warn {
+  background: var(--warning);
+  color: var(--surface);
+}
+.plan-amount {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 8px 0 4px;
+}
+.plan-tasks small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.plan-note {
+  font-size: 13px;
+  margin-top: 10px;
+  color: var(--muted);
+}
+.plan-blockers {
+  margin: 16px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--warning);
+}

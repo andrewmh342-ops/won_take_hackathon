@@ -1,6 +1,8 @@
 package com.wontake.ai;
 
+import com.wontake.api.ApiException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** 테스트·키 없는 연결 확인용 규칙. 실제 AI 추론으로 시연하지 않는다. */
 public class FakeAiClient implements AiClient {
@@ -20,8 +22,36 @@ public class FakeAiClient implements AiClient {
             for(var m:c.menus()) if(t.message().contains(m.name())) tried.add(m.name()+" 안내받음");
         return new HandoffSummary(purpose,"",tried.isEmpty()?"":"(모의) "+String.join(", ",tried),"");
     }
+    private static final Pattern MAN_WON = Pattern.compile("(\\d+)\\s*만\\s*원"), WON = Pattern.compile("(\\d[\\d,]*)\\s*원"),
+        WHO = Pattern.compile("(\\S+?)(?:한테|에게)"), SEND = Pattern.compile("\\d\\s*(만\\s*)?원|보내|이체|송금|넣어");
+    /** 연결 테스트용: 쉼표로 나눈 조각마다 받는 곳 별칭(없으면 "~한테")과 "N만원"/"N원"을 찾는다. */
+    @Override public PlanDraft plan(PlanContext c) {
+        var tasks = new ArrayList<TaskDraft>();
+        for (var part : c.request().split("[,，]")) {
+            String target = null;
+            for (var p : c.payees()) for (var alias : p.aliases()) if (target == null && part.contains(alias)) target = p.name();
+            if (target == null) { var who = WHO.matcher(part); if (who.find()) target = who.group(1); }
+            if (target != null) tasks.add(new TaskDraft(target, amount(part), ""));
+        }
+        if (tasks.isEmpty() && FINANCE_WORDS.stream().noneMatch(c.request()::contains)) return new PlanDraft(Answer.OUT_OF_SCOPE, List.of());
+        return new PlanDraft(Answer.IN_SCOPE, tasks);
+    }
+    /** long을 넘는 금액은 null(말하지 않음)로 바꾸지 않는다. 그러면 잘못 읽은 것이 "금액을 다시 묻기"로 숨는다. */
+    private static Long amount(String part) {
+        try {
+            var m = MAN_WON.matcher(part);
+            if (m.find()) return Math.multiplyExact(Long.parseLong(m.group(1)), 10_000L);
+            m = WON.matcher(part);
+            return m.find() ? Long.parseLong(m.group(1).replace(",", "")) : null;
+        } catch (ArithmeticException | NumberFormatException e) {
+            throw new ApiException(502, "AI_INVALID_RESPONSE", "AI 작업 목록 형식을 확인하지 못했어요. 다시 시도해 주세요.");
+        }
+    }
     @Override public Answer answer(Context c) {
         String q = c.question();
+        // 연결 테스트용 판정: "누구한테/에게"와 돈을 보내는 말이 함께 있으면 이체 요청으로 본다("상담사에게 연결해 줘"는 아니다).
+        // 실제 판정은 CLAUDE 모드에서 지침으로 한다. 프론트 mock.js의 같은 판정과 함께 고친다.
+        if (WHO.matcher(q).find() && SEND.matcher(q).find()) return new Answer("연결 테스트용 모의 응답입니다. 계좌이체 메뉴를 확인해 보세요.", "", List.of("instant-transfer"), List.of(), false, Answer.TRANSFER_PLAN);
         List<String> ids = new ArrayList<>();
         if(q.contains("방금 제안") && c.helpContext()!=null) ids=c.helpContext().visits().stream().map(Visit::menuId).distinct().limit(2).toList();
         else if (q.contains("내역")) {

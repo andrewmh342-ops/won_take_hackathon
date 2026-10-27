@@ -16,7 +16,7 @@ public class ClaudeAiClient implements AiClient {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JsonMapper json = new JsonMapper();
     private final URI endpoint;
-    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem;
+    private final String key, model, workspace, version, system, behaviorSystem, handoffSystem, planSystem;
     private final Duration timeout;
     private final int maxCalls;
     private final boolean fallbacks;
@@ -31,6 +31,7 @@ public class ClaudeAiClient implements AiClient {
         system=readPrompt("chat-system.txt");
         behaviorSystem=readPrompt("behavior-system.txt");
         handoffSystem=readPrompt("handoff-system.txt");
+        planSystem=readPrompt("plan-system.txt");
     }
     private String readPrompt(String name) {
         try (var stream = getClass().getResourceAsStream("/ai/"+name)) {
@@ -46,14 +47,14 @@ public class ClaudeAiClient implements AiClient {
                 "menuIds", Map.of("type", "array", "items", Map.of("type", "string", "enum", context.menus().stream().map(m -> m.id()).toList())),
                 "steps", Map.of("type", "array", "items", Map.of("type", "string")),
                 "handoff", Map.of("type", "boolean"),
-                "scope", Map.of("type", "string", "enum", List.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE)));
+                "scope", Map.of("type", "string", "enum", Answer.CHAT_SCOPES));
             var schema = Map.of("type", "object", "properties", properties, "required", List.of("scope", "reply", "normalized", "menuIds", "steps", "handoff"), "additionalProperties", false);
             var value=call(context,schema,system,"low");
             // schema가 scope·handoff를 요구하지만, 빠진 응답은 범위 안·강조 없음으로 본다.
             boolean hasHandoff=value.has("handoff"), hasScope=value.has("scope");
             if (!value.isObject() || value.size()!=4+(hasHandoff?1:0)+(hasScope?1:0) || !value.path("reply").isTextual() || !value.path("normalized").isTextual()
                 || !value.path("menuIds").isArray() || !value.path("steps").isArray() || hasHandoff && !value.path("handoff").isBoolean()
-                || hasScope && !Set.of(Answer.IN_SCOPE, Answer.OUT_OF_SCOPE).contains(value.path("scope").asText())) throw invalid();
+                || hasScope && !Answer.CHAT_SCOPES.contains(value.path("scope").asText())) throw invalid();
             var menuIds=new ArrayList<String>(); var steps=new ArrayList<String>();
             for (var node : value.path("menuIds")) { if (!node.isTextual()) throw invalid(); menuIds.add(node.asText()); }
             for (var node : value.path("steps")) { if (!node.isTextual()) throw invalid(); steps.add(node.asText()); }
@@ -78,6 +79,25 @@ public class ClaudeAiClient implements AiClient {
         if(!value.isObject() || value.size()!=4) throw invalid();
         for(var field:fields) if(!value.path(field).isTextual()) throw invalid();
         return json.treeToValue(value,HandoffSummary.class);
+    }
+    @Override public PlanDraft plan(PlanContext context) {
+        var task=Map.of("type","object","properties",Map.of("target",Map.of("type","string"),
+            "amount",Map.of("type",List.of("integer","null")),"memo",Map.of("type","string")),
+            "required",List.of("target","amount","memo"),"additionalProperties",false);
+        var schema=Map.of("type","object","properties",Map.of("scope",Map.of("type","string","enum",PlanDraft.PLAN_SCOPES),
+            "tasks",Map.of("type","array","items",task)),"required",List.of("scope","tasks"),"additionalProperties",false);
+        var value=call(context,schema,planSystem,"low");
+        if(!value.isObject() || value.size()!=2 || !PlanDraft.PLAN_SCOPES.contains(value.path("scope").asText())
+            || !value.path("tasks").isArray()) throw invalid();
+        var tasks=new ArrayList<TaskDraft>();
+        for(var node:value.path("tasks")) {
+            // 금액은 long만 받는다. "50만원" 같은 글자나 소수, long을 넘는 수는 오류로 본다.
+            var amount=node.path("amount");
+            if(!node.isObject() || node.size()!=3 || !node.path("target").isTextual() || !node.path("memo").isTextual()
+                || !(amount.isNull() || amount.isIntegralNumber() && amount.canConvertToLong())) throw invalid();
+            tasks.add(new TaskDraft(node.path("target").asText(),amount.isNull()?null:amount.longValue(),node.path("memo").asText()));
+        }
+        return new PlanDraft(value.path("scope").asText(),tasks);
     }
     private tools.jackson.databind.JsonNode call(Object context,Map<String,?> schema,String prompt,String effort) {
         // 서버 전체 호출 상한: 넘으면 요청을 보내지 않는다.

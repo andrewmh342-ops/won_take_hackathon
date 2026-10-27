@@ -1,0 +1,36 @@
+{
+  "myAccounts": [
+    {
+      "name": "WON 생활통장",
+      "number": "DEMO-ACCOUNT-01",
+      "balance": 2450000,
+      "withdrawal": true,
+      "aliases": [],
+      "history": []
+    },
+    {
+      "name": "WON 차곡차곡 적금",
+      "number": "DEMO-ACCOUNT-02",
+      "balance": 5800000,
+      "withdrawal": false,
+      "aliases": ["적금", "차곡차곡 적금"],
+      "history": [500000, 500000, 500000]
+    }
+  ],
+  "contacts": [
+    {
+      "name": "집주인",
+      "aliases": ["집주인", "월세"],
+      "bank": "가상은행",
+      "number": "1002-000-000102",
+      "history": [650000, 650000, 650000, 650000, 650000, 650000]
+    },
+    {
+      "name": "엄마",
+      "aliases": ["엄마", "어머니"],
+      "bank": "가상은행",
+      "number": "1002-000-000103",
+      "history": [300000, 300000, 250000, 300000, 300000, 300000]
+    }
+  ]
+}
