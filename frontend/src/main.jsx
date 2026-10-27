@@ -12,6 +12,15 @@ import ChatScreen from './screens/ChatScreen.jsx';
 import AgentScreen from './screens/AgentScreen.jsx';
 import ServiceScreen from './screens/ServiceScreen.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
+import CardListScreen from './screens/CardListScreen.jsx';
+import CardReissueScreen from './screens/CardReissueScreen.jsx';
+import SubscriptionScreen from './screens/SubscriptionScreen.jsx';
+import SimplePayScreen from './screens/SimplePayScreen.jsx';
+import OverseasScreen from './screens/OverseasScreen.jsx';
+import TravelCardScreen from './screens/TravelCardScreen.jsx';
+import FxRateScreen from './screens/FxRateScreen.jsx';
+import ExchangeApplyScreen from './screens/ExchangeApplyScreen.jsx';
+import TravelInsuranceScreen from './screens/TravelInsuranceScreen.jsx';
 import { registerMenuNavigation, highlightMenu } from './components/MenuList.jsx';
 import { useMock, getHealth } from './api/client.js';
 import './styles/tokens.css';
@@ -29,6 +38,17 @@ const screens = {
   security: ServiceScreen,
   certificate: ServiceScreen,
   exchange: ServiceScreen,
+  card: ServiceScreen,
+  // R5 업무 화면 (가상 상태 공유)
+  'card-list': CardListScreen,
+  'card-reissue': CardReissueScreen,
+  subscription: SubscriptionScreen,
+  'simple-pay': SimplePayScreen,
+  overseas: OverseasScreen,
+  'travel-card': TravelCardScreen,
+  'fx-rate': FxRateScreen,
+  'exchange-apply': ExchangeApplyScreen,
+  'travel-insurance': TravelInsuranceScreen,
 };
 function App() {
   const { screen, key, navigate } = useNavigation();

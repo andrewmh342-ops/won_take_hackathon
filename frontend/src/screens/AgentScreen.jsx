@@ -162,6 +162,20 @@ export default function AgentScreen() {
                 )}
               </section>
 
+              {summary.planProgress?.length > 0 && (
+                <section className="agent-card">
+                  <div className="panel-heading">
+                    <h3>원테이크 플랜 진행</h3>
+                    <span>{summary.planProgress.length}건</span>
+                  </div>
+                  <ul className="agent-plan">
+                    {summary.planProgress.map((line, index) => (
+                      <li key={`${line}-${index}`}>{line}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               <section className="agent-card">
                 <div className="panel-heading">
                   <h3>클릭 기록</h3>

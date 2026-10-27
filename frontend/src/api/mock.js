@@ -1,5 +1,7 @@
 // 담당: 공용 — 프론트 시연 전용 고정 응답 (실제 AI 분석 아님)
+import { buildMockPlan, executeMockPlan } from './mockPlan.js';
 let agreed = null;
+const plans = new Map();
 let never = localStorage.getItem('wontake-demo-never') === 'true';
 const entries = new Map();
 const tickets = [];
@@ -62,6 +64,21 @@ export const mock = {
         menuId: '',
         steps: [],
         notFoundStreak,
+      };
+    } else if (inputType !== 'SUGGESTION' && buildMockPlan(text)) {
+      const plan = buildMockPlan(text);
+      plans.set(plan.planId, plan);
+      notFoundStreak = 0;
+      result = {
+        type: 'PLAN',
+        normalized: '',
+        reply: '(가짜) 해야 할 일을 순서대로 정리했어요.',
+        intentId: '',
+        menuId: '',
+        steps: [],
+        notFoundStreak,
+        handoffSuggested: false,
+        plan,
       };
     } else if (inputType === 'SUGGESTION') {
       const answer =
@@ -147,6 +164,13 @@ export const mock = {
     conversations.push({ role: 'USER', message: text, inputType, intentId: intentId || '' });
     conversations.push({ role: 'ASSISTANT', ...result });
     return result;
+  },
+  async executePlan(planId, index) {
+    const plan = plans.get(planId);
+    if (!plan) throw new Error('플랜을 찾지 못했어요. 다시 물어봐 주세요.');
+    const next = executeMockPlan(plan, index);
+    plans.set(planId, next);
+    return next;
   },
   async postVoice() {
     return { recognizedText: '(가짜) 이체 한도가 우째 되능교' };

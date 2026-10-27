@@ -5,6 +5,7 @@ import MenuList from '../components/MenuList.jsx';
 import SearchBar from '../components/SearchBar.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { categories } from '../data/menu.js';
+import { setDemoProfile } from '../api/client.js';
 
 const CATEGORY_ICONS = {
   '이체/출금': '↗',
@@ -12,12 +13,24 @@ const CATEGORY_ICONS = {
   '인증/보안': '◇',
   '증명서/서류': '▧',
   환전: '↔',
+  카드: '▭',
 };
 
 export default function MenuScreen() {
   const { navigate, params } = useNavigation();
   const [query, setQuery] = useState(params.query ?? '');
   const [targetCategory, setTargetCategory] = useState(null);
+  const [demoProfile, setDemoProfileState] = useState('');
+
+  // R5 시연용: 가상 고객 A·B를 바꿔 같은 질문에 다른 플랜이 조립되는 것을 보여 준다(개발 빌드에서만).
+  const switchProfile = async (profileId) => {
+    try {
+      await setDemoProfile(profileId);
+      setDemoProfileState(profileId);
+    } catch (error) {
+      setDemoProfileState(`오류: ${error.message}`);
+    }
+  };
 
   // 분류 바로가기: 검색어를 지우고, 목록이 다시 그려진 뒤 그 분류 제목으로 스크롤한다
   const jumpTo = (category) => {
@@ -66,6 +79,13 @@ export default function MenuScreen() {
       <button className="settings-link" onClick={() => navigate('agent')}>
         상담사 화면 미리보기 <span>↗</span>
       </button>
+      {import.meta.env.DEV && (
+        <div className="demo-profile">
+          <p>개발 확인: 시연 고객 바꾸기 {demoProfile && <strong>(현재 {demoProfile})</strong>}</p>
+          <button className="secondary" onClick={() => switchProfile('A')}>고객 A (트래블카드 있음)</button>
+          <button className="secondary" onClick={() => switchProfile('B')}>고객 B (트래블카드 없음)</button>
+        </div>
+      )}
     </div>
   );
 }

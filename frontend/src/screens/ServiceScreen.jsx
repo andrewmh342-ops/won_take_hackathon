@@ -8,6 +8,7 @@ const DESCRIPTIONS = {
   security: '인증서와 보안 설정을 관리하는 화면이에요.',
   certificate: '필요한 증명서를 골라 발급하는 화면이에요.',
   exchange: '환전과 환율을 확인하는 화면이에요.',
+  card: '카드 분실·재발급·결제 설정을 관리하는 화면이에요.',
 };
 
 export default function ServiceScreen() {
