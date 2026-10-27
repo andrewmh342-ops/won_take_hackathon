@@ -6,14 +6,14 @@ import RobotIcon from '../components/RobotIcon.jsx';
 import { useAuth, logout } from '../session/auth.js';
 import { useAccounts } from '../data/useAccounts.js';
 import AccountStatus from '../components/AccountStatus.jsx';
-import { menuEmoji, ALL_MENU_EMOJI, AI_GUIDE_EMOJI } from '../data/emoji.js';
+import { menuEmoji, ALL_MENU_EMOJI } from '../data/emoji.js';
 
-// [이름, 화면, 이모지, 메뉴 id]. 메뉴 이모지는 전체 메뉴와 같은 것을 쓴다(data/emoji.js). WON TAKE는 스플래시를 거쳐 대화로 간다.
+// [이름, 화면, 이모지, 메뉴 id]. 메뉴 이모지는 전체 메뉴와 같은 것을 쓴다(data/emoji.js). WON TAKE는 이모지 없이 로봇 아이콘을 쓰고, 스플래시를 거쳐 대화로 간다.
 const shortcuts = [
   ['계좌조회', 'account', menuEmoji('all-accounts'), 'all-accounts'],
   ['계좌이체', 'transfer', menuEmoji('instant-transfer'), 'instant-transfer'],
   ['전체메뉴', 'menu', ALL_MENU_EMOJI],
-  ['WON TAKE', 'splash', AI_GUIDE_EMOJI],
+  ['WON TAKE', 'splash', null],
   ['해외송금', 'transfer', menuEmoji('overseas-remittance'), 'overseas-remittance'],
   ['환전', 'exchange', menuEmoji('exchange-apply'), 'exchange-apply'],
   ['증명서', 'certificate', menuEmoji('balance-certificate'), 'balance-certificate'],
@@ -84,7 +84,10 @@ export default function HomeScreen() {
               data-track-id={`quick-${screen}-${label}`}
               onClick={() => navigate(screen, menuId ? { menuId } : {})}
             >
-              <span className="shortcut-icon emoji" aria-hidden="true">{icon}</span>
+              {/* WON TAKE는 이모지 대신 상단 AI 버튼과 같은 로봇 아이콘을 쓴다. */}
+              <span className={`shortcut-icon ${icon ? 'emoji' : 'robot'}`} aria-hidden="true">
+                {icon ?? <RobotIcon size={26} />}
+              </span>
               <span>{label}</span>
             </button>
           ))}

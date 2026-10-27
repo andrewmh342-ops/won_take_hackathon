@@ -47,7 +47,6 @@ export const MENU_EMOJI = {
 
 // 메뉴가 아닌 홈 바로가기
 export const ALL_MENU_EMOJI = '🗂️';
-export const AI_GUIDE_EMOJI = '🤖';
 
 export const TAB_EMOJI = {
   상품: '🛍️',
