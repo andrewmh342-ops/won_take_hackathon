@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigation } from '../navigation/index.jsx';
 import BackButton from '../layout/BackButton.jsx';
+import { myAccounts, totalBalance } from '../data/accounts.js';
 export default function AccountScreen() {
   const { navigate } = useNavigation();
   return (
@@ -14,18 +15,15 @@ export default function AccountScreen() {
           전체 잔액 <small>가상 데이터</small>
         </span>
         <strong>
-          {(8250000).toLocaleString('ko-KR')}
+          {totalBalance.toLocaleString('ko-KR')}
           <span> 원</span>
         </strong>
       </div>
       <div className="section-title">
         <h2>입출금 · 저축</h2>
-        <span>2개</span>
+        <span>{myAccounts.length}개</span>
       </div>
-      {[
-        ['WON 생활통장', 'DEMO-ACCOUNT-01', 2450000],
-        ['WON 차곡차곡 적금', 'DEMO-ACCOUNT-02', 5800000],
-      ].map(([name, id, balance]) => (
+      {myAccounts.map(({ name, number: id, balance }) => (
         <section className="account-card" key={id}>
           <div className="account-head">
             <span className="bank-icon">W</span>
