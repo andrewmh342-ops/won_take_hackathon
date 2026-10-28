@@ -25,6 +25,19 @@ public class BehaviorService {
         return raw.stream().filter(Objects::nonNull).map(String::trim).filter(q -> !q.isEmpty() && q.length() <= MAX_QUESTION_LENGTH)
             .distinct().limit(MAX_QUESTIONS).toList();
     }
+    /**
+     * AI가 예상 질문을 하나도 주지 않았을 때의 가이드 질문(2026-10-28). "방금 제안한 내용"처럼 막연한 버튼 대신,
+     * 말풍선이 제안한 메뉴(부족하면 그 메뉴의 관련 메뉴) 이름으로 "어디서 열어요?"·"무엇을 할 수 있어요?"를 만든다. 이름은 메뉴 목록에서만 가져온다.
+     */
+    List<String> guide(List<String> menuIds) {
+        var menus=menuIds.stream().filter(catalog::contains).map(catalog::find).toList();
+        var out=new ArrayList<String>();
+        for(var m:menus) out.add(m.name()+" 화면은 어디서 열어요?");          // 제안한 메뉴의 위치
+        if(!menus.isEmpty()) out.add(menus.getFirst().name()+"에서 무엇을 할 수 있어요?"); // 첫 메뉴의 쓰임
+        if(!menus.isEmpty()) for(var rel:menus.getFirst().relatedMenuIds())   // 모자라면 관련 메뉴
+            if(catalog.contains(rel) && !menuIds.contains(rel)) out.add(catalog.find(rel).name()+" 화면은 어디서 열어요?");
+        return likely(out);
+    }
     private record Active(String menuId, String category, long entered) {}
     private static class Analysis {
         final String id=UUID.randomUUID().toString();
@@ -112,9 +125,14 @@ public class BehaviorService {
         catch(RuntimeException e) { return null; } // R1 실패 시 팝업을 만들지 않는다. 가짜 제안으로 바꾸지 않는다.
         synchronized(state) {
             if(state.pending!=analysis || !Boolean.TRUE.equals(store.consent(userId)) || store.never(userId) || !valid(answer)) return null;
-            analysis.bubble=new Bubble(analysis.id,analysis.screenId,analysis.input.visits().getLast().category(),answer.question(),List.copyOf(answer.menuIds()),ai.mode(),likely(answer.questions()));
+            analysis.bubble=new Bubble(analysis.id,analysis.screenId,analysis.input.visits().getLast().category(),answer.question(),List.copyOf(answer.menuIds()),ai.mode(),questions(answer));
             return analysis.bubble;
         }
+    }
+
+    private List<String> questions(AiClient.ProactiveSuggestion answer) {
+        var picked=likely(answer.questions());
+        return picked.isEmpty()?guide(answer.menuIds()):picked;
     }
 
     public AiClient.HelpContext context(String userId,String sessionId,String contextId) {

@@ -192,12 +192,31 @@ class BehaviorServiceTest {
         assertEquals(List.of("한도는 얼마예요?", "해외로 보내려면요?"), f.service().analyze("u", "s", f.id()).questions());
     }
 
-    @Test void 예상_질문이_없어도_역질문_말풍선은_뜬다() {
+    @Test void AI가_예상_질문을_안_주면_제안한_메뉴로_가이드_질문_3개를_만든다() {
+        // 2026-10-28 사용자 요청: "방금 제안한 내용으로 안내해 줘" 대신 주제에 맞는 가이드 버튼. 메뉴 이름은 메뉴 목록에서만 가져온다.
         store.consent("u", true);
         var f = flowOn(with(List.of()));
         var bubble = f.service().analyze("u", "s", f.id());
         assertNotNull(bubble);
-        assertEquals(List.of(), bubble.questions());
+        assertEquals(3, bubble.questions().size());
+        assertEquals("즉시/예약이체 화면은 어디서 열어요?", bubble.questions().getFirst());
+        assertTrue(bubble.questions().stream().allMatch(q -> q.length() <= 60));
+        assertEquals(3, bubble.questions().stream().distinct().count());
+    }
+    @Test void 계좌조회_분류의_가이드_질문에는_이체_메뉴가_섞이지_않는다() {
+        store.consent("u", true);
+        var service = new BehaviorService(store, catalog, new FakeAiClient() {
+            @Override public ProactiveSuggestion suggest(BehaviorContext c) {
+                return new ProactiveSuggestion(true, "계좌 목록을 찾으세요, 거래내역을 찾으세요?", List.of("all-accounts", "transaction-history"), List.of());
+            }
+        }, clock);
+        var a = catalog.find("all-accounts"); var b = catalog.find("transaction-history");
+        service.record("u", "s", "SCREEN_ENTER", a.screenId(), a.id(), null); clock.now += 1000;
+        service.record("u", "s", "SCREEN_ENTER", "menu", null, null);
+        service.record("u", "s", "SCREEN_ENTER", b.screenId(), b.id(), null); clock.now += 1000;
+        var id = service.record("u", "s", "SCREEN_ENTER", "menu", null, null);
+        var questions = service.analyze("u", "s", id).questions();
+        assertEquals(List.of("전체계좌조회 화면은 어디서 열어요?", "거래내역조회 화면은 어디서 열어요?", "전체계좌조회에서 무엇을 할 수 있어요?"), questions);
     }
 
     @Test void 모의_AI도_방문한_분류의_예상_질문_3개를_만든다() {
