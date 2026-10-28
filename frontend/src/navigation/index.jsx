@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import * as api from '../api/client.js';
 import { trackScreen, trackClick } from '../tracking/index.js';
 import { findMenu } from '../data/menu.js';
+import { canShowHelpBubble, hasUnfinishedPlan, endPlan } from './helpBubble.js';
 const Navigation = createContext(null);
 export const useNavigation = () => useContext(Navigation);
 export function NavigationProvider({ children }) {
@@ -19,9 +20,21 @@ export function NavigationProvider({ children }) {
   current.current = { route, agreed };
   // 지나온 화면 기록. 홈은 출발점이라 홈으로 가면 기록을 비운다.
   const history = useRef([]);
+  // 이 세션에서 연 원테이크 플랜 id → 마쳤는지. 마치지 않은 플랜이 있으면 R1 도움 제안 말풍선을 띄우지 않는다.
+  const plans = useRef(new Map());
+  const unfinishedPlan = () => hasUnfinishedPlan(plans.current);
+  // 원테이크 화면(마친 화면 포함)에서는 띄우지 않는다.
+  const bubbleBlocked = () => unfinishedPlan() || current.current.route.screen === 'plan';
+  // 원테이크 화면·업무 화면이 플랜 상태를 받을 때마다 알려 준다.
+  const notePlanProgress = useCallback((planId, done) => {
+    if (planId) plans.current.set(planId, Boolean(done));
+  }, []);
+  // [아니요, 끝낼게요]: 고객이 끝낸 플랜으로 기록해, 원테이크 화면 밖에서는 말풍선이 다시 뜰 수 있게 한다.
+  const finishPlan = useCallback((planId) => endPlan(plans.current, planId), []);
   // replace: 지금 화면을 기록에 남기지 않고 바꾼다(스플래시처럼 잠깐 보이는 화면).
   const navigate = useCallback((screen, params = {}, { replace = false } = {}) => {
     const from = current.current.route;
+    if (params.planId && !plans.current.has(params.planId)) plans.current.set(params.planId, false);
     if (screen === 'home') history.current = [];
     else if (!replace) history.current = [...history.current, { screen: from.screen, params: from.params }];
     setBubble(null);
@@ -51,10 +64,10 @@ export function NavigationProvider({ children }) {
   useEffect(() => {
     let active = true;
     if (ready && !['consent', 'agent', 'login', 'splash'].includes(route.screen))
-      trackScreen(route.screen, agreed, route.params.menuId)
+      trackScreen(route.screen, agreed, route.params.menuId, unfinishedPlan())
         .then(async (result) => {
           if (!result.analysisId) {
-            if (active && current.current.agreed === true && result.bubble) setBubble(result.bubble);
+            if (active && current.current.agreed === true && result.bubble && !bubbleBlocked()) setBubble(result.bubble);
             return;
           }
           // 빠르게 다른 메뉴로 이동해도 이미 감지한 행동 흐름의 분석 요청은 보낸다.
@@ -63,7 +76,7 @@ export function NavigationProvider({ children }) {
           const now = current.current;
           const category = findMenu(now.route.params.menuId)?.category;
           if (latestAnalysis.current === result.analysisId && now.agreed === true && analysis.bubble
-            && !['chat', 'consent', 'agent', 'login', 'splash'].includes(now.route.screen)
+            && canShowHelpBubble(now.route.screen, now.route.params, unfinishedPlan())
             && (!category || category === analysis.bubble.category)) setBubble(analysis.bubble);
         })
         .catch(() => {});
@@ -87,7 +100,7 @@ export function NavigationProvider({ children }) {
     const key = route.key;
     trackClick(route.screen, element.dataset.trackId, agreed)
       .then((result) => {
-        if (current.current.route.key === key && current.current.agreed === true && result.bubble)
+        if (current.current.route.key === key && current.current.agreed === true && result.bubble && !bubbleBlocked())
           setBubble(result.bubble);
       })
       .catch(() => {});
@@ -95,7 +108,7 @@ export function NavigationProvider({ children }) {
   return (
     <Navigation.Provider
       value={{
-        ...route, navigate, goBack, agreed, changeConsent, bubble, setBubble,
+        ...route, navigate, goBack, agreed, changeConsent, bubble, setBubble, notePlanProgress, finishPlan,
         handoffHint, setHandoffHint, handoffPending, setHandoffPending, openHandoff,
       }}
     >

@@ -39,7 +39,8 @@ public class BehaviorService {
         final DemoStore.Session session;
         Active active;
         final List<AiClient.Visit> visits=new ArrayList<>();
-        long lastAnalysis=Long.MIN_VALUE/2;
+        /** 분류별 마지막 분석 시각. 분석 간격 60초는 분류마다 따로 센다. */
+        final Map<String,Long> lastAnalysis=new HashMap<>();
         Analysis pending;
         State(DemoStore.Session session) { this.session=session; }
     }
@@ -55,6 +56,11 @@ public class BehaviorService {
     @Autowired(required=false) public void setRedactor(com.wontake.assist.Redactor redactor) { this.redactor=redactor; }
 
     public String record(String userId,String sessionId,String type,String screenId,String elementId,String query) {
+        return record(userId,sessionId,type,screenId,elementId,query,false);
+    }
+
+    /** planActive: 고객이 원테이크 플랜을 진행 중(안 끝남)이다. 행동 기록은 남기되 R1 분석은 하지 않고, 그동안의 방문은 흐름에서 뺀다. */
+    public String record(String userId,String sessionId,String type,String screenId,String elementId,String query,boolean planActive) {
         if(!store.event(userId,sessionId,type,screenId,elementId,query) || !type.equals("SCREEN_ENTER") || store.never(userId)) return null;
         var session=store.session(userId,sessionId);
         // 세션과 행동 상태의 잠금을 동시에 잡지 않는다. AI 요청 중에도 이벤트 기록은 계속 가능하다.
@@ -66,6 +72,7 @@ public class BehaviorService {
         long now=clock.millis();
         synchronized(state) {
             if(!Boolean.TRUE.equals(store.consent(userId))) return null;
+            if(planActive) { state.active=null; state.visits.clear(); return null; }
             Active previous=state.active;
             state.active=null;
             if(elementId!=null && catalog.contains(elementId)) {
@@ -82,8 +89,8 @@ public class BehaviorService {
             int start=state.visits.size()-1;
             while(start>0 && state.visits.get(start-1).category().equals(previous.category)) start--;
             var sameCategory=List.copyOf(state.visits.subList(start,state.visits.size()));
-            if(sameCategory.stream().map(AiClient.Visit::menuId).distinct().count()<2 || now-state.lastAnalysis<60000) return null;
-            state.lastAnalysis=now;
+            if(sameCategory.stream().map(AiClient.Visit::menuId).distinct().count()<2 || now-state.lastAnalysis.getOrDefault(previous.category,Long.MIN_VALUE/2)<60000) return null;
+            state.lastAnalysis.put(previous.category,now);
             state.visits.clear();
             state.pending=new Analysis(screenId,now,new AiClient.BehaviorContext(sameCategory,List.copyOf(recent),history,catalog.all()));
             return state.pending.id;

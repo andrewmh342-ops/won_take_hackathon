@@ -72,6 +72,32 @@ class BehaviorServiceTest {
         store.consent("u",false); behavior.reset("u");
         assertNull(behavior.analyze("u","s",id)); assertNull(behavior.context("u","s",id));
     }
+    String enterInPlan(String menuId) {
+        var item=catalog.find(menuId);
+        return behavior.record("u","s","SCREEN_ENTER",item.screenId(),menuId,null,true);
+    }
+    @Test void planInProgressSkipsAnalysisButKeepsEventsAndLeavesNoCooldown() {
+        store.consent("u",true);
+        // 플랜 진행 중: 카드 업무 화면을 빠르게 오가도 분석하지 않는다(AI 호출 없음)
+        assertNull(enterInPlan("card-loss-report")); clock.now+=1000;
+        assertNull(enterInPlan("simple-pay")); clock.now+=1000;
+        assertNull(enterInPlan("card-reissue")); clock.now+=1000;
+        assertNull(behavior.record("u","s","SCREEN_ENTER","plan",null,null,true));
+        assertEquals(0,calls.get());
+        assertTrue(store.session("u","s").events().size()>=4, "상담 요약용 행동 기록은 그대로 남는다");
+        // 플랜을 끝낸 직후(60초 안)에도 같은 카드 분류를 헤매면 바로 분석한다: 플랜 중 방문은 합치지도, 대기 시간을 쓰지도 않는다
+        assertNull(enter("card-loss-report")); clock.now+=1000;
+        assertNull(enter("simple-pay")); clock.now+=1000;
+        assertNotNull(exit());
+    }
+    @Test void cooldownIsPerCategorySoAnotherCategoryCanBeAnalyzedWithinSixtySeconds() {
+        store.consent("u",true); assertNotNull(flow(1000)); // 이체/출금
+        enter("exchange-apply"); clock.now+=1000; assertNull(exit());
+        enter("exchange-rate"); clock.now+=1000; assertNotNull(exit()); // 환전: 60초 안이어도 다른 분류라 분석
+        assertNull(flow(1000)); // 이체/출금은 아직 60초 안이라 분석 안 함
+        clock.now+=60001;
+        assertNotNull(flow(1000)); // 60초가 지나면 다시 분석
+    }
     @Test void cooldownAndNeverPreventRepeatedAnalyses() {
         store.consent("u",true); assertNotNull(flow(1000));
         assertNull(flow(1000));
