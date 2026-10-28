@@ -5,6 +5,7 @@ import { cancelRecognition, startRecognition, stopRecognition } from '../audio/s
 import Popup from '../components/Popup.jsx';
 import PlanCard from '../components/PlanCard.jsx';
 import AiThinking from '../components/AiThinking.jsx';
+import RobotIcon from '../components/RobotIcon.jsx';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 import { openReplyMenu, claimInitialQuestion, menuReplyContent } from '../chat/menuNavigation.js';
@@ -41,6 +42,7 @@ export default function ChatScreen() {
   const [receipt, setReceipt] = useState(null);
   const latestMessage = useRef(null);
   const thinkingBubble = useRef(null);
+  const helpStart = useRef(null);
   const initialQuestionSent = useRef(false);
   const mounted = useRef(true);
   const voicePending = useRef(false);
@@ -224,6 +226,12 @@ export default function ChatScreen() {
 
   const suggestions = Array.isArray(params.suggestions) ? params.suggestions.slice(0, 3) : [];
   const help = helpChoices(params, helpUsed);
+  // 역제안 말풍선에서 왔으면, 대화 기록이 있어도 바로 보이도록 맨 아래의 시작 말풍선으로 내린다.
+  const showHelp = Boolean(help);
+  useEffect(() => {
+    // 화면에 들어온 순간이라 부드럽게 움직이지 않고 바로 맞춘다(최근 메시지로 가는 부드러운 스크롤보다 우선).
+    if (showHelp && historyReady) helpStart.current?.scrollIntoView({ block: 'start' });
+  }, [showHelp, historyReady, messages.length]);
   const isRecording = micState === 'recording';
   const inputDisabled = !historyReady || busy || ['starting', 'recording', 'stopping', 'transcribing'].includes(micState);
   // 상담 버튼은 항상 쓸 수 있다. AI가 권하거나 찾지 못함이 연속 2번이면 강조만 한다(SPEC R3).
@@ -235,30 +243,7 @@ export default function ChatScreen() {
         <BackButton />
         <strong>WON테이크 상담</strong>
       </header>
-      {messages.length === 0 && <p className="chat-intro">막힌 상황을 편하게 말씀해 주세요.<br />예: 카드를 잃어버렸어요</p>}
-      {/* 작업 39: 말풍선에서 왔으면 역질문 한 줄과 예상 질문 큰 버튼. 하나를 누르거나 직접 물으면 사라진다. */}
-      {help && (
-        <section className="help-start" aria-label="먼저 제안한 도움">
-          <p className="help-start-title">{help.title}</p>
-          <div className="help-start-list">
-            {help.questions.map((question, i) => (
-              <button key={question} type="button" className="help-start-q" data-track-id={`help-q-${i + 1}`} disabled={inputDisabled}
-                onClick={() => send(question)}>
-                {question}<span aria-hidden="true">›</span>
-              </button>
-            ))}
-            {help.fallback && (
-              <button type="button" className="help-start-q" data-track-id="help-q-default" disabled={inputDisabled}
-                onClick={() => send('방금 제안한 내용으로 안내해 줘')}>
-                제안한 내용으로 안내받기<span aria-hidden="true">›</span>
-              </button>
-            )}
-          </div>
-          <button type="button" className="help-start-self" data-track-id="help-self" onClick={() => document.getElementById('chat-draft')?.focus()}>
-            직접 말할게요
-          </button>
-        </section>
-      )}
+      {messages.length === 0 && !help && <p className="chat-intro">막힌 상황을 편하게 말씀해 주세요.<br />예: 카드를 잃어버렸어요</p>}
 
       {messages.length === 0 && (suggestions.length > 0 || params.question) && (
         <div className="suggestion-list">
@@ -334,6 +319,36 @@ export default function ChatScreen() {
             </li>
           );
         })}
+        {/* 작업 39: 말풍선에서 왔으면 대화 맨 아래(최근 대화 다음)에 AI가 먼저 묻는 말풍선과 예상 질문 가이드 버튼. 하나를 누르거나 직접 물으면 사라진다. */}
+        {help && (
+          <li className="help-start" aria-label="먼저 제안한 도움" ref={helpStart}>
+            <div className="help-start-ai">
+              <span className="help-start-avatar" aria-hidden="true"><RobotIcon size={24} /></span>
+              <div className="help-start-bubble">
+                <small>WON테이크</small>
+                <p className="help-start-title">{help.title}</p>
+              </div>
+            </div>
+            <p className="help-start-guide">이렇게 물어보실 수 있어요</p>
+            <div className="help-start-list">
+              {help.questions.map((question, i) => (
+                <button key={question} type="button" className="help-start-q" data-track-id={`help-q-${i + 1}`} disabled={inputDisabled}
+                  onClick={() => send(question)}>
+                  {question}<span aria-hidden="true">›</span>
+                </button>
+              ))}
+              {help.fallback && (
+                <button type="button" className="help-start-q" data-track-id="help-q-default" disabled={inputDisabled}
+                  onClick={() => send('말풍선에서 물어본 내용에 맞는 메뉴를 안내해 줘')}>
+                  이 질문에 맞는 메뉴 안내받기<span aria-hidden="true">›</span>
+                </button>
+              )}
+            </div>
+            <button type="button" className="help-start-self" data-track-id="help-self" onClick={() => document.getElementById('chat-draft')?.focus()}>
+              직접 말할게요
+            </button>
+          </li>
+        )}
         {/* AI가 답을 만드는 동안 대화 안에 입력 중 말풍선을 둔다. */}
         {busy && (
           <li className="chat-thinking" ref={thinkingBubble}>

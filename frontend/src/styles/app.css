@@ -3133,25 +3133,64 @@ input::placeholder {
   .ai-typing i {
     opacity: 0.6;
   }
+}
 
-/* 작업 39: 말풍선에서 열린 대화의 시작 카드 (역질문 + 예상 질문 큰 버튼) */
+/* 작업 39: 말풍선에서 열린 대화의 시작. AI가 먼저 묻는 말풍선 + 아래에 예상 질문 가이드 버튼 */
 .help-start {
-  margin: 16px 0 8px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--surface);
-  box-shadow: 0 6px 18px #20365a12;
+  margin: 12px 0 8px;
+}
+/* 대화 목록 맨 아래 항목으로 들어가므로 폭을 다 쓰고, 고정 제목에 가리지 않게 여백을 둔다. */
+.chat-thread > .help-start {
+  align-self: stretch;
+  list-style: none;
+  scroll-margin-top: 64px;
+}
+.help-start-ai {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.help-start-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+}
+.help-start-bubble {
+  max-width: 280px;
+  padding: 13px 16px;
+  border-radius: 4px 18px 18px 18px;
+  background: var(--bg);
+  animation: ai-line-in 0.35s ease-out;
+}
+.help-start-bubble small {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: 0.4px;
 }
 .help-start-title {
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.45;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text);
+}
+.help-start-guide {
+  margin: 16px 0 8px 50px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
 }
 .help-start-list {
   display: grid;
   gap: 8px;
-  margin-top: 14px;
+  margin-left: 50px;
 }
 .help-start-q {
   display: flex;
@@ -3159,23 +3198,29 @@ input::placeholder {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 15px 16px;
+  padding: 14px 16px;
+  border: 1px solid #2463eb33;
   border-radius: 14px;
-  background: var(--primary-soft);
+  background: var(--surface);
   color: var(--primary);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.4;
   text-align: left;
 }
+.help-start-q:not(:disabled):hover {
+  background: var(--primary-soft);
+}
 .help-start-q span {
+  flex: none;
   font-size: 20px;
 }
 .help-start-self {
   display: block;
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px;
+  margin: 10px 0 0 50px;
+  padding: 8px 4px;
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
+  text-decoration: underline;
 }
