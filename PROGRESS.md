@@ -404,3 +404,52 @@
 - 실행한 테스트와 결과: 새 테스트 먼저 작성 후 실패 확인(백엔드 컴파일 실패, 프런트 모듈 없음·뒤로 돌아옴 1개) → 구현. 백엔드 `gradlew test` 280개 통과·0개 실패. 프런트 `node --test src/*/*.test.js` 100개 통과·0개 실패, `npm run build` 성공. 브라우저(FAKE 8081·Vite 5175): 동의 → 즉시/예약이체·해외송금 → 말풍선 → 대화에 예상 질문 3개(이체 한도·해외 송금·예약 이체) → [이체 한도는 얼마예요?] → AI가 이체한도 화면을 바로 엶(팀원의 메뉴 자동 이동) → 뒤로 → 대화 기록 유지·시작 카드 다시 안 뜸. 카드 분류: 카드 분실신고·카드 재발급 → 예상 질문 3개 → [카드를 잃어버렸어요] → 원테이크 플랜.
 - 기존 테스트 기대값 변경 없음. 고치면 안 되는 파일: AGENTS.md·CLAUDE.md 안 고침.
 - 확인하지 못한 것: 실제 Claude가 만든 예상 질문의 품질·길이(Claude 모드로 확인 필요). 커밋하지 않음.
+
+### 2026-10-28 · [claude] 원테이크 플랜 중·후에는 R1 도움 제안 말풍선 숨김
+- 사용자 요청: 원테이크 플랜을 진행 중이거나 마친 뒤, 같은 분류 메뉴를 오갈 때 뜨는 역제안 말풍선("카드 분실신고와 간편결제 해제는 마치셨나요?…")을 보이지 않게.
+- 한 일: navigation/helpBubble.js(새) — 원테이크 화면이나 planId를 가지고 들어온 업무 화면을 플랜 흐름으로 보고, 세션에서 플랜을 한 번이라도 열었으면(진행 중·마침 모두) 말풍선을 띄우지 않는 규칙. navigation/index.jsx — 화면 이동 때 플랜 흐름이면 표시해 두고, 말풍선을 띄우는 세 곳(화면 진입 결과·AI 분석 결과·클릭 결과)에 이 규칙을 적용. 행동 기록 전송과 AI 분석 요청은 그대로(말풍선 표시만 막음).
+- 바뀐 파일: frontend navigation/helpBubble.js(새)·helpBubble.test.js(새)·index.jsx, PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 먼저 실패 확인 후 구현. 프런트 `node --test src/**/*.test.js` 113개 통과·0개 실패, `npm run build` 성공. 브라우저(모의 모드 5192, 확인 후 종료): 플랜 없이 같은 메뉴 3번 → 말풍선 표시(기존 동작 유지), 플랜을 연 뒤 같은 메뉴 3번 → 말풍선 없음, 콘솔 오류 0건.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. SPEC R1에 "플랜을 연 세션은 말풍선 미표시" 예외를 넣으려면 승인 필요.
+- 확인하지 못한 것: Claude 모드 실제 AI 분석 말풍선(서버 꺼져 있음, 화면 쪽 규칙이라 같은 방식으로 막힘). 커밋하지 않음.
+
+### 2026-10-28 · [claude] 플랜을 마치고 나오면 R1 도움 제안 말풍선 다시 표시
+- 사용자 요청: 원테이크 플랜을 마치고 나와 같은 분류 메뉴를 여러 번 오가면 역제안 말풍선이 다시 나오게. 나머지(플랜 진행 중·플랜 화면 안·마치지 않고 나간 경우 숨김)는 그대로.
+- 한 일: navigation/helpBubble.js — "세션에서 플랜을 연 적 있음" 대신 "연 플랜 중 안 끝난 것이 있음(hasUnfinishedPlan)"으로 판단. navigation/index.jsx — 연 플랜 id별로 마쳤는지 기억하고 notePlanProgress로 갱신. screens/PlanScreen.jsx — 플랜을 받을 때마다 finishState가 COMPLETE인지 알려 줌. components/BizLayout.jsx(PlanBanner) — 업무 화면에서 받은 플랜 상태(complete)도 알려 줌(마지막 단계를 업무 화면에서 끝내고 바로 다른 메뉴로 가는 경우).
+- 바뀐 파일: frontend navigation/helpBubble.js·helpBubble.test.js·index.jsx, screens/PlanScreen.jsx, components/BizLayout.jsx, PROGRESS.md.
+- 실행한 테스트와 결과: 바뀐 테스트 먼저 실패 확인 후 구현. 프런트 `node --test src/**/*.test.js` 116개 통과·0개 실패, `npm run build` 성공. 브라우저(모의 모드 5192, 확인 후 종료): 플랜을 마치지 않고 나가 같은 메뉴 3번 → 말풍선 없음, 플랜을 마치고("3/3 완료", "WON TAKE로 대응을 마쳤어요!") 나가 같은 메뉴 3번 → 말풍선 표시, 콘솔 오류 0건.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. SPEC R1 예외 추가는 승인 필요.
+- 확인하지 못한 것: Claude 모드 실제 AI 분석 말풍선(서버 꺼져 있음). 모의 확인에서 플랜 완료는 화면 대신 앱의 모의 API로 블록을 처리해 만듦. 커밋하지 않음.
+
+### 2026-10-28 · [claude] 말풍선 규칙에서 "플랜 화면 안이면 숨김" 조건 삭제
+- 사용자 요청: "원테이크 화면·플랜에서 연 업무 화면이면 숨김"은 "플랜 진행 중이면 숨김"과 겹치므로 빼기.
+- 한 일: navigation/helpBubble.js에서 isPlanRoute(플랜 화면 여부) 삭제, 남은 기준은 "연 플랜 중 안 끝난 것이 있음"과 원래 숨기던 화면(대화·동의·상담사·로그인·스플래시)뿐. navigation/index.jsx에서 planBlocksBubble 대신 unfinishedPlan()만 사용. 결과: 플랜을 마친 뒤에는 플랜에서 연 업무 화면이라도 원래 규칙대로 말풍선이 뜰 수 있음.
+- 바뀐 파일: frontend navigation/helpBubble.js·helpBubble.test.js·index.jsx, PROGRESS.md.
+- 실행한 테스트와 결과: 바뀐 테스트 먼저 실패 확인 후 구현. 프런트 `node --test src/**/*.test.js` 113개 통과·0개 실패, `npm run build` 성공. 브라우저(모의 모드 5192, 확인 후 종료): 플랜을 마치지 않고 나가 같은 메뉴 3번 → 말풍선 없음, 새 세션에서 플랜을 마치고("3/3 완료") 같은 메뉴 3번 → 말풍선 표시.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: Claude 모드 실제 AI 분석 말풍선(서버 꺼져 있음). 커밋하지 않음.
+
+### 2026-10-28 · [claude] R1 분석 간격을 분류별 60초로, 원테이크 화면 말풍선 숨김, [아니요, 끝낼게요] 후 다시 표시
+- 사용자 요청: 분석 간격을 카테고리(분류)별 60초로. 플랜 진행 중 숨김은 유지. 원테이크 화면 "WON TAKE로 대응을 마쳤어요!"에서는 숨김. [아니요, 끝낼게요]를 누르면 말풍선이 다시 나올 수 있게.
+- 한 일: backend BehaviorService — 마지막 분석 시각을 분류별 Map으로 바꿔 같은 분류만 60초 간격, 다른 분류는 바로 분석 가능(작업 폴더에 있던 미커밋 10초 값은 요청대로 분류별 60초로 바꿈). frontend helpBubble.js — 원테이크 화면(plan)을 숨김 화면에 추가, endPlan 추가. navigation/index.jsx — 말풍선 세 경로 모두 원테이크 화면에서 숨김, finishPlan 제공. PlanScreen.jsx — [아니요, 끝낼게요]에서 finishPlan 후 홈으로.
+- 바뀐 파일: backend behavior/BehaviorService.java, test behavior/BehaviorServiceTest.java(분류별 간격 테스트 1개), frontend navigation/helpBubble.js·helpBubble.test.js·index.jsx, screens/PlanScreen.jsx, PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 먼저 실패 확인 후 구현. 백엔드 `gradlew test` 289개 통과·0개 실패. 프런트 `node --test src/**/*.test.js` 115개 통과·0개 실패, `npm run build` 성공. 브라우저(모의 모드 5192, 확인 후 종료): 마친 플랜 화면("WON TAKE로 대응을 마쳤어요!")에서 말풍선 없음(같은 화면 3번 열어도 없음), [아니요, 끝낼게요] → 홈 → 같은 메뉴 3번 → 말풍선 표시, 콘솔 오류 0건.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침. SPEC R1 "분석은 60초 간격"을 "분류별 60초 간격"으로 바꾸고 플랜 예외를 넣으려면 승인 필요.
+- 확인하지 못한 것: Claude 모드 실제 백엔드 흐름(서버 꺼져 있음). frontend/src/styles/app.css의 미커밋 변경은 이번 작업과 무관해 건드리지 않음. 커밋하지 않음.
+
+### 2026-10-28 · [claude] 플랜 진행 중에는 백엔드가 R1 분석을 하지 않음
+- 사용자 요청: 실제 서버에서 [아니요, 끝낼게요] 뒤 같은 분류를 헤매도 말풍선이 안 뜸 → 플랜 진행 중에는 백엔드가 R1 분석을 하지 않게.
+- 원인: 화면만 말풍선을 숨기고 백엔드는 플랜 도중(카드 업무 화면은 모두 "카드" 분류)에도 분석·Claude 호출을 해 분류별 60초 대기와 헤맨 기록 비우기를 써 버림. 또 8080 서버가 분류별 60초 수정 전에 켜져 있었음.
+- 한 일: frontend tracking/index.js — 화면 진입 이벤트에 planActive(안 끝난 플랜 있음)를 실어 보냄. navigation/index.jsx — 그 값을 넘김. backend DemoController EventInput에 planActive(없으면 false), BehaviorService.record에 planActive 인자(기존 6인자 메서드는 false로 위임) — 행동 기록은 그대로 남기고(상담 요약용), R1 분석은 하지 않고 그동안의 방문은 흐름에서 뺌. 분석을 안 하므로 대기 시간도 쓰지 않음.
+- 바뀐 파일: backend api/DemoController.java, behavior/BehaviorService.java, test behavior/BehaviorServiceTest.java(테스트 1개), frontend tracking/index.js, navigation/index.jsx, PROGRESS.md.
+- 실행한 테스트와 결과: 새 테스트 먼저 실패(컴파일 실패) 확인 후 구현. 백엔드 `gradlew test` 290개 통과·0개 실패. 프런트 `node --test src/**/*.test.js` 115개 통과·0개 실패, `npm run build` 성공. 임시 FAKE 서버(8091, 확인 후 종료)에 HTTP로 확인: planActive 이벤트 4개(카드 업무 화면 3개+원테이크 화면) 모두 분석 없음, 이어서 planActive 없이 카드 메뉴 2개를 오가자 바로 분석 ID 생성.
+- 고치면 안 되는 파일: AGENTS.md·CLAUDE.md·SPEC.md 안 고침.
+- 확인하지 못한 것: 사용자 8080(Claude 모드)은 재시작 전이라 이 변경이 반영되지 않음. 커밋하지 않음.
+
+### 2026-10-28 · [claude] 재시작한 실제 서버(Claude 모드)에서 플랜 중 R1 분석 중지 확인
+- 사용자 요청: 백엔드 재시작 후 실제 서버에서 확인.
+- 확인한 것(8080 CLAUDE 모드, 10:33 재시작으로 새 코드 반영 확인):
+  - API: planActive 이벤트 4개(카드 업무 화면 3개+원테이크 화면) 모두 분석 없음, 이어서 카드 메뉴 2개를 오가자 바로 분석 ID 생성, /assist/analyze로 Claude 역질문 말풍선 생성(약 3.3초).
+  - 브라우저(5173): "카드를 잃어버렸어" → 플랜(카드 확인 후 Claude 재판단, "할 일이 1개 늘었어요") → 플랜 중간에 나가 카드 메뉴 3개 오가기 → 말풍선 없음 → 남은 단계 처리(자동결제는 화면에서 다른 카드로 옮김, 나머지는 앱 API) → "5/5 완료", "WON TAKE로 대응을 마쳤어요!" 화면에서 말풍선 없음 → [아니요, 끝낼게요] → 홈 → 카드 메뉴 2개 오가기 → Claude 역질문 말풍선 표시.
+- 참고: 콘솔의 400 1건은 확인 중 자동결제 단계를 옮길 카드 없이 API로 처리하려다 난 것(정상 거절, SPEC "옮길 카드 미선택 400").
+- 코드 변경 없음. Claude 호출 약 5회 사용. 커밋하지 않음.

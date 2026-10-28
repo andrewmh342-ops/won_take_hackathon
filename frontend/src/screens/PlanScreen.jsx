@@ -223,7 +223,7 @@ function FinishPage({ plan, busy, onRun, onReview, onHandoff, onGoCurrent, onEnd
 }
 
 export default function PlanScreen() {
-  const { params, navigate, openHandoff } = useNavigation();
+  const { params, navigate, openHandoff, notePlanProgress, finishPlan } = useNavigation();
   const [plan, setPlan] = useState(null);
   const [demo, setDemo] = useState(null);
   const [index, setIndex] = useState(0);
@@ -233,6 +233,10 @@ export default function PlanScreen() {
   const [error, setError] = useState('');
   const [newKeys, setNewKeys] = useState(() => new Set());
   const pager = useRef(null);
+  // 플랜을 마쳤는지 알려 준다. 마친 뒤 일반 메뉴로 나가면 R1 도움 제안 말풍선이 다시 뜰 수 있다.
+  useEffect(() => {
+    if (plan) notePlanProgress(plan.planId, finishState(plan) === 'COMPLETE');
+  }, [plan, notePlanProgress]);
 
   const load = useCallback(async () => {
     setError('');
@@ -358,7 +362,7 @@ export default function PlanScreen() {
               <ConfirmPage plan={plan} cards={demo?.cards} busy={Boolean(busy)} onConfirm={(refs) => replan(() => confirmCards(plan.planId, refs), '', 'confirm')} />
             ) : step.kind === 'FINISH' ? (
               <FinishPage plan={plan} busy={Boolean(busy)} onRun={run} onHandoff={openHandoff} onGoCurrent={() => setIndex(current)}
-                onEnd={() => navigate('home')} onReview={() => replan(() => reviewPlan(plan.planId), '더 하실 일은 없어요')} />
+                onEnd={() => { finishPlan(plan.planId); navigate('home'); }} onReview={() => replan(() => reviewPlan(plan.planId), '더 하실 일은 없어요')} />
             ) : step.block.blockId === 'ask-info' && step.block.status === 'PENDING' ? (
               <AskPage block={step.block} today={demo?.today} busy={Boolean(busy)}
                 onAnswer={(block, value) => replan(() => answerPlan(plan.planId, block.index, value), '', 'answer')} />

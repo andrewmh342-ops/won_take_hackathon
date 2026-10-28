@@ -12,7 +12,7 @@ import java.util.*;
 @RequestMapping("/api")
 public class DemoController {
     public record ConsentInput(String userId, Boolean agreed) {}
-    public record EventInput(String userId, String sessionId, String type, String screenId, String elementId, String query) {}
+    public record EventInput(String userId, String sessionId, String type, String screenId, String elementId, String query, Boolean planActive) {}
     public record CloseInput(String userId, String sessionId, String screenId, String action) {}
     public record ChatInput(String userId, String sessionId, String message, String inputType, String intentId,String contextId) {}
     public record AnalyzeInput(String userId,String sessionId,String contextId) {}
@@ -32,7 +32,7 @@ public class DemoController {
         if(!body.agreed()) behavior.reset(body.userId());
     }
     @PostMapping("/events") public Object event(@RequestBody EventInput body) {
-        String id=behavior.record(body.userId(),body.sessionId(),body.type(),body.screenId(),body.elementId(),body.query());
+        String id=behavior.record(body.userId(),body.sessionId(),body.type(),body.screenId(),body.elementId(),body.query(),Boolean.TRUE.equals(body.planActive()));
         var result=new LinkedHashMap<String,Object>(); result.put("bubble",null); result.put("analysisId",id); return result;
     }
     @PostMapping("/assist/analyze") public Object analyze(@RequestBody AnalyzeInput body) {

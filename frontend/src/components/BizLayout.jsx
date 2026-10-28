@@ -1,12 +1,16 @@
 // 담당: 공용 — R5 업무 화면 틀. 플랜 진행 띠, 가상 시연·브랜드 안내, 처리 결과 문구를 같은 모양으로 보여 준다.
-import React from 'react';
+import React, { useEffect } from 'react';
 import BackButton from '../layout/BackButton.jsx';
 import { useNavigation } from '../navigation/index.jsx';
 
 /** 플랜 블록에서 들어왔을 때만 보인다. 화면에서 처리하면 같은 상태로 완료 수가 바뀐다. */
 export function PlanBanner({ state }) {
-  const { params, navigate } = useNavigation();
+  const { params, navigate, notePlanProgress } = useNavigation();
   const progress = params.planId ? state?.plans?.[params.planId] : null;
+  // 업무 화면에서 마지막 단계를 끝내고 바로 다른 메뉴로 가도 플랜을 마친 것으로 알 수 있게 알려 준다.
+  useEffect(() => {
+    if (progress) notePlanProgress(params.planId, progress.complete);
+  }, [progress?.complete, params.planId, notePlanProgress]);
   if (!progress) return null;
   // 필수 블록을 다 해도 필수 목표가 확보되지 않으면 완료로 보이지 않는다(R5 목표 중심).
   const done = Boolean(progress.complete);
